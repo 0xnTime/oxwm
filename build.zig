@@ -44,6 +44,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    unit_tests.use_lld = false;
     test_step.dependOn(&b.addRunArtifact(unit_tests).step);
 
     const src_main_unit_tests = b.addTest(.{
@@ -53,6 +54,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    src_main_unit_tests.use_lld = false;
     src_main_unit_tests.linkSystemLibrary("lua5.4");
     src_main_unit_tests.linkSystemLibrary("X11");
     src_main_unit_tests.linkSystemLibrary("Xinerama");
@@ -68,6 +70,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    lua_config_tests.use_lld = false;
     lua_config_tests.root_module.addImport("lua", b.createModule(.{
         .root_source_file = b.path("src/config/lua.zig"),
         .target = target,
