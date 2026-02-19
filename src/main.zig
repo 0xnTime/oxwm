@@ -427,6 +427,8 @@ fn setup_monitors(display: *Display) void {
                     mon.pertag.ltidxs[i][4] = mon.lt[4];
                 }
 
+                init_monitor_gaps(mon);
+
                 if (prev_monitor) |prev| {
                     prev.next = mon;
                 } else {
@@ -466,6 +468,9 @@ fn setup_monitors(display: *Display) void {
         mon.pertag.ltidxs[i][3] = mon.lt[3];
         mon.pertag.ltidxs[i][4] = mon.lt[4];
     }
+
+    init_monitor_gaps(mon);
+
     monitor_mod.monitors = mon;
     monitor_mod.selected_monitor = mon;
     std.debug.print("monitor created: {d}x{d}\n", .{ mon.mon_w, mon.mon_h });
@@ -480,6 +485,23 @@ fn apply_config_values() void {
     gap_outer_h = config.gap_outer_h;
     gap_outer_v = config.gap_outer_v;
     tags = config.tags;
+}
+
+fn init_monitor_gaps(mon: *Monitor) void {
+    const any_gap_nonzero = config.gap_inner_h != 0 or config.gap_inner_v != 0 or
+                            config.gap_outer_h != 0 or config.gap_outer_v != 0;
+
+    if (config.gaps_enabled and any_gap_nonzero) {
+        mon.gap_inner_h = config.gap_inner_h;
+        mon.gap_inner_v = config.gap_inner_v;
+        mon.gap_outer_h = config.gap_outer_h;
+        mon.gap_outer_v = config.gap_outer_v;
+    } else {
+        mon.gap_inner_h = 0;
+        mon.gap_inner_v = 0;
+        mon.gap_outer_h = 0;
+        mon.gap_outer_v = 0;
+    }
 }
 
 fn make_keybind(mod: u32, key: u64, action: config_mod.Action) config_mod.Keybind {
