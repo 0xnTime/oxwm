@@ -9,9 +9,8 @@ const ColorScheme = config_mod.ColorScheme;
 const Monitor = monitor_mod.Monitor;
 const Block = blocks_mod.Block;
 
-fn get_layout_symbol(layout_index: u32) []const u8 {
-    const cfg = config_mod.get_config();
-    if (cfg) |conf| {
+fn get_layout_symbol(layout_index: u32, config: ?config_mod.Config) []const u8 {
+    if (config) |conf| {
         return switch (layout_index) {
             0 => conf.layout_tile_symbol,
             1 => conf.layout_monocle_symbol,
@@ -162,7 +161,7 @@ pub const Bar = struct {
         self.needs_redraw = true;
     }
 
-    pub fn draw(self: *Bar, display: *xlib.Display, tags: []const []const u8) void {
+    pub fn draw(self: *Bar, display: *xlib.Display, tags: []const []const u8, config: ?config_mod.Config) void {
         if (!self.needs_redraw) return;
 
         self.fill_rect(display, 0, 0, self.width, self.height, self.scheme_normal.background);
@@ -196,7 +195,7 @@ pub const Bar = struct {
 
         x_position += padding;
 
-        const layout_symbol = get_layout_symbol(monitor.sel_lt);
+        const layout_symbol = get_layout_symbol(monitor.sel_lt, config);
         self.draw_text(display, x_position, @divTrunc(self.height + self.font_height, 2) - 4, layout_symbol, self.scheme_normal.foreground);
         x_position += self.text_width(display, layout_symbol) + padding;
 
@@ -326,7 +325,7 @@ pub fn draw_bars(display: *xlib.Display, tags: []const []const u8) void {
     while (current_monitor) |monitor| {
         _ = monitor;
         if (bars) |bar| {
-            bar.draw(display, tags);
+            bar.draw(display, tags, null);
         }
         current_monitor = if (current_monitor) |m| m.next else null;
     }

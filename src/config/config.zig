@@ -184,13 +184,3 @@ pub const Config = struct {
         try self.autostart.append(self.allocator, cmd);
     }
 };
-
-pub var global_config: ?*Config = null;
-
-pub fn get_config() ?*Config {
-    return global_config;
-}
-
-pub fn set_config(cfg: *Config) void {
-    global_config = cfg;
-}

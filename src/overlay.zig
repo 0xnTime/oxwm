@@ -89,19 +89,18 @@ pub const Keybind_Overlay = struct {
         }
     }
 
-    pub fn toggle(self: *Keybind_Overlay, mon_x: i32, mon_y: i32, mon_w: i32, mon_h: i32) void {
+    pub fn toggle(self: *Keybind_Overlay, mon_x: i32, mon_y: i32, mon_w: i32, mon_h: i32, config: *config_mod.Config) void {
         if (self.visible) {
             self.hide();
         } else {
-            self.show(mon_x, mon_y, mon_w, mon_h);
+            self.show(mon_x, mon_y, mon_w, mon_h, config);
         }
     }
 
-    pub fn show(self: *Keybind_Overlay, mon_x: i32, mon_y: i32, mon_w: i32, mon_h: i32) void {
+    pub fn show(self: *Keybind_Overlay, mon_x: i32, mon_y: i32, mon_w: i32, mon_h: i32, config: *config_mod.Config) void {
         const display = self.display orelse return;
-        const cfg = config_mod.get_config() orelse return;
 
-        self.collect_keybinds(cfg);
+        self.collect_keybinds(config);
         if (self.line_count == 0) return;
 
         var max_key_width: i32 = 0;

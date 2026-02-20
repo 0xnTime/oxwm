@@ -213,7 +213,6 @@ pub fn main() !void {
 
     config = config_mod.Config.init(allocator);
     defer config.deinit();
-    config_mod.set_config(&config);
 
     if (lua.init(&config)) {
         const loaded = if (std.fs.cwd().statFile(config_path)) |_|
@@ -711,7 +710,7 @@ fn run_event_loop(display: *Display) void {
         var current_bar = bar_mod.bars;
         while (current_bar) |bar| {
             bar.update_blocks();
-            bar.draw(display.handle, &tags);
+            bar.draw(display.handle, &tags, config);
             current_bar = bar.next;
         }
 
@@ -1011,7 +1010,7 @@ fn execute_action(display: *Display, action: config_mod.Action, int_arg: i32, st
             if (keybind_overlay) |overlay| {
                 const mon = monitor_mod.selected_monitor orelse monitor_mod.monitors;
                 if (mon) |m| {
-                    overlay.toggle(m.mon_x, m.mon_y, m.mon_w, m.mon_h);
+                    overlay.toggle(m.mon_x, m.mon_y, m.mon_w, m.mon_h, &config);
                 }
             }
         },
@@ -1860,7 +1859,7 @@ fn handle_expose(display: *Display, event: *xlib.XExposeEvent) void {
 
     if (bar_mod.window_to_bar(event.window)) |bar| {
         bar.invalidate();
-        bar.draw(display.handle, &tags);
+        bar.draw(display.handle, &tags, config);
     }
 }
 
