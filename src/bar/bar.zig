@@ -1,7 +1,6 @@
 const std = @import("std");
 const xlib = @import("../x11/xlib.zig");
 const monitor_mod = @import("../monitor.zig");
-const client_mod = @import("../client.zig");
 const blocks_mod = @import("blocks/blocks.zig");
 const config_mod = @import("../config/config.zig");
 const ColorScheme = config_mod.ColorScheme;
@@ -9,22 +8,12 @@ const ColorScheme = config_mod.ColorScheme;
 const Monitor = monitor_mod.Monitor;
 const Block = blocks_mod.Block;
 
-fn get_layout_symbol(layout_index: u32, config: ?config_mod.Config) []const u8 {
-    if (config) |conf| {
-        return switch (layout_index) {
-            0 => conf.layout_tile_symbol,
-            1 => conf.layout_monocle_symbol,
-            2 => conf.layout_floating_symbol,
-            3 => "[S]",
-            4 => "[#]",
-            else => "[?]",
-        };
-    }
+fn get_layout_symbol(layout_index: u32, config: config_mod.Config) []const u8 {
     return switch (layout_index) {
-        0 => "[]=",
-        1 => "[M]",
-        2 => "><>",
-        3 => "[S]",
+        0 => config.layout_tile_symbol,
+        1 => config.layout_monocle_symbol,
+        2 => config.layout_floating_symbol,
+        3 => config.layout_scrolling_symbol,
         4 => "[#]",
         else => "[?]",
     };
@@ -53,6 +42,8 @@ pub const Bar = struct {
     needs_redraw: bool,
     next: ?*Bar,
 
+    /// Creates a bar window for `monitor` using the given config.
+    /// Returns null on allocation failure or if the font cannot be loaded.
     pub fn create(
         allocator: std.mem.Allocator,
         display: *xlib.Display,
@@ -67,7 +58,10 @@ pub const Bar = struct {
         const depth = xlib.XDefaultDepth(display, screen);
         const root = xlib.XRootWindow(display, screen);
 
-        const font_name_z = allocator.dupeZ(u8, config.font) catch return null;
+        const font_name_z = allocator.dupeZ(u8, config.font) catch {
+            allocator.destroy(bar);
+            return null;
+        };
         defer allocator.free(font_name_z);
 
         const font = xlib.XftFontOpenName(display, screen, font_name_z);
@@ -91,7 +85,6 @@ pub const Bar = struct {
             0x1a1b26,
         );
 
-        _ = xlib.c.XSetWindowAttributes{};
         var attributes: xlib.c.XSetWindowAttributes = undefined;
         attributes.override_redirect = xlib.True;
         attributes.event_mask = xlib.c.ExposureMask | xlib.c.ButtonPressMask;
@@ -106,7 +99,6 @@ pub const Bar = struct {
         );
 
         const graphics_context = xlib.XCreateGC(display, pixmap, 0, null);
-
         const xft_draw = xlib.XftDrawCreate(display, pixmap, visual, colormap);
 
         _ = xlib.XMapWindow(display, window);
@@ -127,7 +119,7 @@ pub const Bar = struct {
             .scheme_urgent = config.scheme_urgent,
             .hide_vacant_tags = config.hide_vacant_tags,
             .allocator = allocator,
-            .blocks = .{},
+            .blocks = .empty,
             .needs_redraw = true,
             .next = null,
         };
@@ -139,13 +131,12 @@ pub const Bar = struct {
         return bar;
     }
 
+    /// Destroys the bar's X resources and frees the allocation.
+    // TODO: Remove `allocator` param as its already stored in `Bar`.
     pub fn destroy(self: *Bar, allocator: std.mem.Allocator, display: *xlib.Display) void {
-        if (self.xft_draw) |xft_draw| {
-            xlib.XftDrawDestroy(xft_draw);
-        }
-        if (self.font) |font| {
-            xlib.XftFontClose(display, font);
-        }
+        if (self.xft_draw) |xft_draw| xlib.XftDrawDestroy(xft_draw);
+        if (self.font) |font| xlib.XftFontClose(display, font);
+
         _ = xlib.XFreeGC(display, self.graphics_context);
         _ = xlib.XFreePixmap(display, self.pixmap);
         _ = xlib.c.XDestroyWindow(display, self.window);
@@ -157,11 +148,16 @@ pub const Bar = struct {
         self.blocks.append(self.allocator, block) catch {};
     }
 
+    pub fn clear_blocks(self: *Bar) void {
+        self.blocks.clearRetainingCapacity();
+    }
+
     pub fn invalidate(self: *Bar) void {
         self.needs_redraw = true;
     }
 
-    pub fn draw(self: *Bar, display: *xlib.Display, tags: []const []const u8, config: ?config_mod.Config) void {
+    /// Redraws the bar if marked dirty. Tags are taken from `config.tags`
+    pub fn draw(self: *Bar, display: *xlib.Display, config: config_mod.Config) void {
         if (!self.needs_redraw) return;
 
         self.fill_rect(display, 0, 0, self.width, self.height, self.scheme_normal.background);
@@ -171,14 +167,19 @@ pub const Bar = struct {
         const monitor = self.monitor;
         const current_tags = monitor.tagset[monitor.sel_tags];
 
-        for (tags, 0..) |tag, index| {
+        for (config.tags, 0..) |tag, index| {
             const tag_mask: u32 = @as(u32, 1) << @intCast(index);
             const is_selected = (current_tags & tag_mask) != 0;
             const is_occupied = has_clients_on_tag(monitor, tag_mask);
 
             if (self.hide_vacant_tags and !is_occupied and !is_selected) continue;
 
-            const scheme = if (is_selected) self.scheme_selected else if (is_occupied) self.scheme_occupied else self.scheme_normal;
+            const scheme = if (is_selected)
+                self.scheme_selected
+            else if (is_occupied)
+                self.scheme_occupied
+            else
+                self.scheme_normal;
 
             const tag_text_width = self.text_width(display, tag);
             const tag_width = tag_text_width + padding * 2;
@@ -189,7 +190,6 @@ pub const Bar = struct {
 
             const text_y = @divTrunc(self.height + self.font_height, 2) - 4;
             self.draw_text(display, x_position + padding, text_y, tag, scheme.foreground);
-
             x_position += tag_width;
         }
 
@@ -220,6 +220,41 @@ pub const Bar = struct {
         self.needs_redraw = false;
     }
 
+    /// Returns the index of the tag the user clicked on, or null if the
+    /// click was outside the tag area.
+    pub fn handle_click(self: *Bar, display: *xlib.Display, click_x: i32, config: config_mod.Config) ?usize {
+        var x_position: i32 = 0;
+        const padding: i32 = 8;
+        const monitor = self.monitor;
+        const current_tags = monitor.tagset[monitor.sel_tags];
+
+        for (config.tags, 0..) |tag, index| {
+            const tag_mask = @as(u32, 1) << @intCast(index);
+            const is_selected = (current_tags & tag_mask) != 0;
+            const is_occupied = has_clients_on_tag(monitor, tag_mask);
+
+            if (self.hide_vacant_tags and !is_occupied and !is_selected) continue;
+
+            const tag_text_width = self.text_width(display, tag);
+            const tag_width = tag_text_width + padding * 2;
+
+            if (click_x >= x_position and click_x < x_position + tag_width) {
+                return index;
+            }
+            x_position += tag_width;
+        }
+        return null;
+    }
+
+    /// Updates all blocks and marks the bar dirty if any block changed.
+    pub fn update_blocks(self: *Bar) void {
+        var changed = false;
+        for (self.blocks.items) |*block| {
+            if (block.update()) changed = true;
+        }
+        if (changed) self.needs_redraw = true;
+    }
+
     fn fill_rect(self: *Bar, display: *xlib.Display, x: i32, y: i32, width: i32, height: i32, color: c_ulong) void {
         _ = xlib.XSetForeground(display, self.graphics_context, color);
         _ = xlib.XFillRectangle(display, self.pixmap, self.graphics_context, x, y, @intCast(width), @intCast(height));
@@ -239,9 +274,7 @@ pub const Bar = struct {
         const colormap = xlib.XDefaultColormap(display, 0);
 
         _ = xlib.XftColorAllocValue(display, visual, colormap, &render_color, &xft_color);
-
         xlib.XftDrawStringUtf8(self.xft_draw, &xft_color, self.font, x, y, text.ptr, @intCast(text.len));
-
         xlib.XftColorFree(display, visual, colormap, &xft_color);
     }
 
@@ -252,86 +285,12 @@ pub const Bar = struct {
         xlib.XftTextExtentsUtf8(display, self.font, text.ptr, @intCast(text.len), &extents);
         return extents.xOff;
     }
-
-    pub fn handle_click(self: *Bar, click_x: i32, tags: []const []const u8) ?usize {
-        var x_position: i32 = 0;
-        const padding: i32 = 8;
-        const display = xlib.c.XOpenDisplay(null) orelse return null;
-        defer _ = xlib.XCloseDisplay(display);
-
-        const monitor = self.monitor;
-        const current_tags = monitor.tagset[monitor.sel_tags];
-        for (tags, 0..) |tag, index| {
-            const tag_mask = @as(u32, 1) << @intCast(index);
-            const is_selected = (current_tags & tag_mask) != 0;
-            const is_occupied = has_clients_on_tag(monitor, tag_mask);
-
-            if (self.hide_vacant_tags and !is_occupied and !is_selected) continue;
-
-            const tag_text_width = self.text_width(display, tag);
-            const tag_width = tag_text_width + padding * 2;
-
-            if (click_x >= x_position and click_x < x_position + tag_width) {
-                return index;
-            }
-            x_position += tag_width;
-        }
-        return null;
-    }
-
-    pub fn update_blocks(self: *Bar) void {
-        var changed = false;
-        for (self.blocks.items) |*block| {
-            if (block.update()) {
-                changed = true;
-            }
-        }
-        if (changed) {
-            self.needs_redraw = true;
-        }
-    }
-
-    pub fn clear_blocks(self: *Bar) void {
-        self.blocks.clearRetainingCapacity();
-    }
 };
 
-fn has_clients_on_tag(monitor: *Monitor, tag_mask: u32) bool {
-    var current = monitor.clients;
-    while (current) |client| {
-        if ((client.tags & tag_mask) != 0) {
-            return true;
-        }
-        current = client.next;
-    }
-    return false;
-}
+// Bar list helpers >.<
 
-pub var bars: ?*Bar = null;
-
-pub fn create_bars(allocator: std.mem.Allocator, display: *xlib.Display, screen: c_int) void {
-    var current_monitor = monitor_mod.monitors;
-    while (current_monitor) |monitor| {
-        const bar = Bar.create(allocator, display, screen, monitor, "monospace:size=10");
-        if (bar) |created_bar| {
-            bars = created_bar;
-        }
-        current_monitor = monitor.next;
-    }
-}
-
-pub fn draw_bars(display: *xlib.Display, tags: []const []const u8) void {
-    var current_monitor = monitor_mod.monitors;
-    while (current_monitor) |monitor| {
-        _ = monitor;
-        if (bars) |bar| {
-            bar.draw(display, tags, null);
-        }
-        current_monitor = if (current_monitor) |m| m.next else null;
-    }
-}
-
-pub fn invalidate_bars() void {
+/// Marks all bars in the list as needing a redraw.
+pub fn invalidate_bars(bars: ?*Bar) void {
     var current = bars;
     while (current) |bar| {
         bar.invalidate();
@@ -339,23 +298,31 @@ pub fn invalidate_bars() void {
     }
 }
 
-pub fn destroy_bars(allocator: std.mem.Allocator, display: *xlib.Display) void {
+/// Destroys all bars in the list and frees their resources.
+pub fn destroy_bars(bars: ?*Bar, allocator: std.mem.Allocator, display: *xlib.Display) void {
     var current = bars;
     while (current) |bar| {
         const next = bar.next;
         bar.destroy(allocator, display);
         current = next;
     }
-    bars = null;
 }
 
-pub fn window_to_bar(win: xlib.Window) ?*Bar {
+/// Returns the bar whose window matches `win`, or null.
+pub fn window_to_bar(bars: ?*Bar, win: xlib.Window) ?*Bar {
     var current = bars;
     while (current) |bar| {
-        if (bar.window == win) {
-            return bar;
-        }
+        if (bar.window == win) return bar;
         current = bar.next;
     }
     return null;
+}
+
+fn has_clients_on_tag(monitor: *Monitor, tag_mask: u32) bool {
+    var current = monitor.clients;
+    while (current) |client| {
+        if ((client.tags & tag_mask) != 0) return true;
+        current = client.next;
+    }
+    return false;
 }
