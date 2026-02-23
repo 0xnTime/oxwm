@@ -403,7 +403,7 @@ pub fn set_layout_index(index: u32, wm: *WindowManager) void {
 
 pub fn focusmon(direction: i32, wm: *WindowManager) void {
     const selmon = wm.selected_monitor orelse return;
-    const target = monitor_mod.dir_to_monitor(direction) orelse return;
+    const target = monitor_mod.dir_to_monitor(wm, direction) orelse return;
     if (target == selmon) {
         return;
     }
@@ -416,7 +416,7 @@ pub fn focusmon(direction: i32, wm: *WindowManager) void {
 pub fn sendmon(direction: i32, wm: *WindowManager) void {
     const source_monitor = wm.selected_monitor orelse return;
     const client = source_monitor.sel orelse return;
-    const target = monitor_mod.dir_to_monitor(direction) orelse return;
+    const target = monitor_mod.dir_to_monitor(wm, direction) orelse return;
 
     if (target == source_monitor) {
         return;
@@ -533,7 +533,7 @@ pub fn movemouse(wm: *WindowManager) void {
 
     _ = xlib.XUngrabPointer(wm.display.handle, xlib.CurrentTime);
 
-    const new_mon = monitor_mod.rect_to_monitor(client.x, client.y, client.width, client.height);
+    const new_mon = monitor_mod.rect_to_monitor(wm, client.x, client.y, client.width, client.height);
     if (new_mon != null and new_mon != monitor) {
         client_mod.detach(client);
         client_mod.detach_stack(client);

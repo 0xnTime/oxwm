@@ -105,8 +105,6 @@ pub const WindowManager = struct {
         tiling.set_display(display.handle);
         tiling.set_screen_size(display.screen_width(), display.screen_height());
 
-        monitor_mod.init(allocator);
-
         var wm = WindowManager{
             .allocator = allocator,
             .display = display,
@@ -148,7 +146,7 @@ pub const WindowManager = struct {
         var mon = self.monitors;
         while (mon) |m| {
             const next = m.next;
-            monitor_mod.destroy(m);
+            monitor_mod.destroy(self.allocator, m);
             mon = next;
         }
         self.monitors = null;
@@ -171,7 +169,7 @@ pub const WindowManager = struct {
 
                 while (index < @as(usize, @intCast(screen_count))) : (index += 1) {
                     const screen = screens[index];
-                    const mon = monitor_mod.create() orelse continue;
+                    const mon = monitor_mod.create(self.allocator) orelse continue;
 
                     mon.num = @intCast(index);
                     mon.mon_x = screen.x_org;
@@ -213,7 +211,7 @@ pub const WindowManager = struct {
 
         // Fallback: single monitor covering the full screen.
         if (self.monitors == null) {
-            const mon = monitor_mod.create() orelse return;
+            const mon = monitor_mod.create(self.allocator) orelse return;
             mon.num = 0;
             mon.mon_x = 0;
             mon.mon_y = 0;
@@ -241,12 +239,6 @@ pub const WindowManager = struct {
             self.monitors = mon;
             self.selected_monitor = mon;
         }
-
-        // Mirror into monitor_mod so legacy code that still reads the
-        // module-level vars continues to work during the transition.
-        // TODO(wm-refactor): remove once all callers use self.monitors.
-        monitor_mod.monitors = self.monitors;
-        monitor_mod.selected_monitor = self.selected_monitor;
     }
 
     fn init_monitor_gaps(self: *WindowManager, mon: *Monitor) void {

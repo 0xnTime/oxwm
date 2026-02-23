@@ -193,7 +193,7 @@ fn handle_expose(event: *xlib.XExposeEvent, wm: *WindowManager) void {
 fn handle_button_press(event: *xlib.XButtonEvent, wm: *WindowManager) void {
     std.debug.print("button_press: window=0x{x} subwindow=0x{x}\n", .{ event.window, event.subwindow });
 
-    const clicked_monitor = monitor_mod.window_to_monitor(wm.display.handle, wm.display.root, event.window);
+    const clicked_monitor = monitor_mod.window_to_monitor(wm, event.window);
     if (clicked_monitor) |monitor| {
         if (monitor != wm.selected_monitor) {
             if (wm.selected_monitor) |selmon| {
@@ -291,7 +291,7 @@ fn handle_enter_notify(event: *xlib.XCrossingEvent, wm: *WindowManager) void {
     }
 
     const client = client_mod.window_to_client(wm.monitors, event.window);
-    const target_mon = if (client) |c| c.monitor else monitor_mod.window_to_monitor(wm.display.handle, wm.display.root, event.window);
+    const target_mon = if (client) |c| c.monitor else monitor_mod.window_to_monitor(wm, event.window);
     const selmon = wm.selected_monitor;
 
     if (target_mon != selmon) {
@@ -321,7 +321,7 @@ fn handle_focus_in(event: *xlib.XFocusChangeEvent, wm: *WindowManager) void {
 fn handle_motion_notify(event: *xlib.XMotionEvent, wm: *WindowManager) void {
     if (event.window != wm.display.root) return;
 
-    const target_mon = monitor_mod.rect_to_monitor(event.x_root, event.y_root, 1, 1);
+    const target_mon = monitor_mod.rect_to_monitor(wm, event.x_root, event.y_root, 1, 1);
     if (target_mon != wm.last_motion_monitor and wm.last_motion_monitor != null) {
         if (wm.selected_monitor) |selmon| {
             core.unfocus_client(selmon.sel, true, wm);
