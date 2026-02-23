@@ -66,7 +66,7 @@ pub fn destroy(allocator: std.mem.Allocator, mon: *Monitor) void {
 
 /// Returns the monitor whose bar window or client matches `win`, falling
 /// back to a pointer-position query when `win` is the root window.
-pub fn window_to_monitor(wm: *WindowManager, win: xlib.Window) ?*Monitor {
+pub fn windowToMonitor(wm: *WindowManager, win: xlib.Window) ?*Monitor {
     const monitors = wm.monitors;
     const selected_monitor = wm.selected_monitor;
 
@@ -77,7 +77,7 @@ pub fn window_to_monitor(wm: *WindowManager, win: xlib.Window) ?*Monitor {
         var dummy_int: c_int = undefined;
         var dummy_uint: c_uint = undefined;
         if (xlib.XQueryPointer(wm.display.handle, wm.display.root, &dummy_win, &dummy_win, &root_x, &root_y, &dummy_int, &dummy_int, &dummy_uint) != 0) {
-            return rect_to_monitor(wm, root_x, root_y, 1, 1);
+            return rectToMonitor(wm, root_x, root_y, 1, 1);
         }
     }
 
@@ -87,7 +87,7 @@ pub fn window_to_monitor(wm: *WindowManager, win: xlib.Window) ?*Monitor {
         current = monitor.next;
     }
 
-    const client = @import("client.zig").window_to_client(monitors, win);
+    const client = @import("client.zig").windowToClient(monitors, win);
     if (client) |found_client| {
         return found_client.monitor;
     }
@@ -97,7 +97,7 @@ pub fn window_to_monitor(wm: *WindowManager, win: xlib.Window) ?*Monitor {
 
 /// Returns the monitor with the greatest intersection area with the given
 /// rectangle, or `selected_monitor` if no intersection is found.
-pub fn rect_to_monitor(wm: *WindowManager, x: i32, y: i32, width: i32, height: i32) ?*Monitor {
+pub fn rectToMonitor(wm: *WindowManager, x: i32, y: i32, width: i32, height: i32) ?*Monitor {
     const monitors = wm.monitors;
     const selected_monitor = wm.selected_monitor;
     var result = selected_monitor;
@@ -125,7 +125,7 @@ pub fn rect_to_monitor(wm: *WindowManager, x: i32, y: i32, width: i32, height: i
 // TODO:
 // - Change direction to an enum/enum_literal
 // - Rename function
-pub fn dir_to_monitor(wm: *WindowManager, direction: i32) ?*Monitor {
+pub fn dirToMonitor(wm: *WindowManager, direction: i32) ?*Monitor {
     const monitors = wm.monitors;
     const selected_monitor = wm.selected_monitor;
     var target: ?*Monitor = null;

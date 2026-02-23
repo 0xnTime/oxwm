@@ -32,7 +32,7 @@ pub const ChordState = struct {
     }
 
     /// Returns true if the sequence has timed out and should be reset.
-    pub fn is_timed_out(self: *const ChordState) bool {
+    pub fn isTimedOut(self: *const ChordState) bool {
         if (self.index == 0) return false;
         return (std.time.milliTimestamp() - self.last_timestamp) >= timeout_ms;
     }
@@ -58,7 +58,7 @@ pub const ChordState = struct {
     ///
     /// Sets `keyboard_grabbed` on success.  Safe to call repeatedly,
     /// does nothing if already grabbed.
-    pub fn grab_keyboard(self: *ChordState, display: *xlib.Display, root: xlib.Window) void {
+    pub fn grabKeyboard(self: *ChordState, display: *xlib.Display, root: xlib.Window) void {
         if (self.keyboard_grabbed) return;
 
         const result = xlib.XGrabKeyboard(display, root, xlib.True, xlib.GrabModeAsync, xlib.GrabModeAsync, xlib.CurrentTime);

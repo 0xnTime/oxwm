@@ -8,7 +8,7 @@ const ColorScheme = config_mod.ColorScheme;
 const Monitor = monitor_mod.Monitor;
 const Block = blocks_mod.Block;
 
-fn get_layout_symbol(layout_index: u32, config: config_mod.Config) []const u8 {
+fn getLayoutSymbol(layout_index: u32, config: config_mod.Config) []const u8 {
     return switch (layout_index) {
         0 => config.layout_tile_symbol,
         1 => config.layout_monocle_symbol,
@@ -143,11 +143,11 @@ pub const Bar = struct {
         self.allocator.destroy(self);
     }
 
-    pub fn add_block(self: *Bar, block: Block) void {
+    pub fn addBlock(self: *Bar, block: Block) void {
         self.blocks.append(self.allocator, block) catch {};
     }
 
-    pub fn clear_blocks(self: *Bar) void {
+    pub fn clearBlocks(self: *Bar) void {
         self.blocks.clearRetainingCapacity();
     }
 
@@ -159,7 +159,7 @@ pub const Bar = struct {
     pub fn draw(self: *Bar, display: *xlib.Display, config: config_mod.Config) void {
         if (!self.needs_redraw) return;
 
-        self.fill_rect(display, 0, 0, self.width, self.height, self.scheme_normal.background);
+        self.fillRect(display, 0, 0, self.width, self.height, self.scheme_normal.background);
 
         var x_position: i32 = 0;
         const padding: i32 = 8;
@@ -169,7 +169,7 @@ pub const Bar = struct {
         for (config.tags, 0..) |tag, index| {
             const tag_mask: u32 = @as(u32, 1) << @intCast(index);
             const is_selected = (current_tags & tag_mask) != 0;
-            const is_occupied = has_clients_on_tag(monitor, tag_mask);
+            const is_occupied = hasClientsOnTag(monitor, tag_mask);
 
             if (self.hide_vacant_tags and !is_occupied and !is_selected) continue;
 
@@ -180,35 +180,35 @@ pub const Bar = struct {
             else
                 self.scheme_normal;
 
-            const tag_text_width = self.text_width(display, tag);
+            const tag_text_width = self.textWidth(display, tag);
             const tag_width = tag_text_width + padding * 2;
 
             if (is_selected) {
-                self.fill_rect(display, x_position, self.height - 3, tag_width, 3, scheme.border);
+                self.fillRect(display, x_position, self.height - 3, tag_width, 3, scheme.border);
             }
 
             const text_y = @divTrunc(self.height + self.font_height, 2) - 4;
-            self.draw_text(display, x_position + padding, text_y, tag, scheme.foreground);
+            self.drawText(display, x_position + padding, text_y, tag, scheme.foreground);
             x_position += tag_width;
         }
 
         x_position += padding;
 
-        const layout_symbol = get_layout_symbol(monitor.sel_lt, config);
-        self.draw_text(display, x_position, @divTrunc(self.height + self.font_height, 2) - 4, layout_symbol, self.scheme_normal.foreground);
-        x_position += self.text_width(display, layout_symbol) + padding;
+        const layout_symbol = getLayoutSymbol(monitor.sel_lt, config);
+        self.drawText(display, x_position, @divTrunc(self.height + self.font_height, 2) - 4, layout_symbol, self.scheme_normal.foreground);
+        x_position += self.textWidth(display, layout_symbol) + padding;
 
         var block_x: i32 = self.width - padding;
         var block_index: usize = self.blocks.items.len;
         while (block_index > 0) {
             block_index -= 1;
             const block = &self.blocks.items[block_index];
-            const content = block.get_content();
-            const content_width = self.text_width(display, content);
+            const content = block.getContent();
+            const content_width = self.textWidth(display, content);
             block_x -= content_width;
-            self.draw_text(display, block_x, @divTrunc(self.height + self.font_height, 2) - 4, content, block.color());
+            self.drawText(display, block_x, @divTrunc(self.height + self.font_height, 2) - 4, content, block.color());
             if (block.underline) {
-                self.fill_rect(display, block_x, self.height - 2, content_width, 2, block.color());
+                self.fillRect(display, block_x, self.height - 2, content_width, 2, block.color());
             }
             block_x -= padding;
         }
@@ -221,7 +221,7 @@ pub const Bar = struct {
 
     /// Returns the index of the tag the user clicked on, or null if the
     /// click was outside the tag area.
-    pub fn handle_click(self: *Bar, display: *xlib.Display, click_x: i32, config: config_mod.Config) ?usize {
+    pub fn handleClick(self: *Bar, display: *xlib.Display, click_x: i32, config: config_mod.Config) ?usize {
         var x_position: i32 = 0;
         const padding: i32 = 8;
         const monitor = self.monitor;
@@ -230,11 +230,11 @@ pub const Bar = struct {
         for (config.tags, 0..) |tag, index| {
             const tag_mask = @as(u32, 1) << @intCast(index);
             const is_selected = (current_tags & tag_mask) != 0;
-            const is_occupied = has_clients_on_tag(monitor, tag_mask);
+            const is_occupied = hasClientsOnTag(monitor, tag_mask);
 
             if (self.hide_vacant_tags and !is_occupied and !is_selected) continue;
 
-            const tag_text_width = self.text_width(display, tag);
+            const tag_text_width = self.textWidth(display, tag);
             const tag_width = tag_text_width + padding * 2;
 
             if (click_x >= x_position and click_x < x_position + tag_width) {
@@ -246,7 +246,7 @@ pub const Bar = struct {
     }
 
     /// Updates all blocks and marks the bar dirty if any block changed.
-    pub fn update_blocks(self: *Bar) void {
+    pub fn updateBlocks(self: *Bar) void {
         var changed = false;
         for (self.blocks.items) |*block| {
             if (block.update()) changed = true;
@@ -254,12 +254,12 @@ pub const Bar = struct {
         if (changed) self.needs_redraw = true;
     }
 
-    fn fill_rect(self: *Bar, display: *xlib.Display, x: i32, y: i32, width: i32, height: i32, color: c_ulong) void {
+    fn fillRect(self: *Bar, display: *xlib.Display, x: i32, y: i32, width: i32, height: i32, color: c_ulong) void {
         _ = xlib.XSetForeground(display, self.graphics_context, color);
         _ = xlib.XFillRectangle(display, self.pixmap, self.graphics_context, x, y, @intCast(width), @intCast(height));
     }
 
-    fn draw_text(self: *Bar, display: *xlib.Display, x: i32, y: i32, text: []const u8, color: c_ulong) void {
+    fn drawText(self: *Bar, display: *xlib.Display, x: i32, y: i32, text: []const u8, color: c_ulong) void {
         if (self.xft_draw == null or self.font == null) return;
 
         var xft_color: xlib.XftColor = undefined;
@@ -277,7 +277,7 @@ pub const Bar = struct {
         xlib.XftColorFree(display, visual, colormap, &xft_color);
     }
 
-    fn text_width(self: *Bar, display: *xlib.Display, text: []const u8) i32 {
+    fn textWidth(self: *Bar, display: *xlib.Display, text: []const u8) i32 {
         if (self.font == null) return 0;
 
         var extents: xlib.XGlyphInfo = undefined;
@@ -289,7 +289,7 @@ pub const Bar = struct {
 // Bar list helpers >.<
 
 /// Marks all bars in the list as needing a redraw.
-pub fn invalidate_bars(bars: ?*Bar) void {
+pub fn invalidateBars(bars: ?*Bar) void {
     var current = bars;
     while (current) |bar| {
         bar.invalidate();
@@ -298,7 +298,7 @@ pub fn invalidate_bars(bars: ?*Bar) void {
 }
 
 /// Destroys all bars in the list and frees their resources.
-pub fn destroy_bars(bars: ?*Bar, display: *xlib.Display) void {
+pub fn destroyBars(bars: ?*Bar, display: *xlib.Display) void {
     var current = bars;
     while (current) |bar| {
         const next = bar.next;
@@ -308,7 +308,7 @@ pub fn destroy_bars(bars: ?*Bar, display: *xlib.Display) void {
 }
 
 /// Returns the bar whose window matches `win`, or null.
-pub fn window_to_bar(bars: ?*Bar, win: xlib.Window) ?*Bar {
+pub fn windowToBar(bars: ?*Bar, win: xlib.Window) ?*Bar {
     var current = bars;
     while (current) |bar| {
         if (bar.window == win) return bar;
@@ -317,7 +317,7 @@ pub fn window_to_bar(bars: ?*Bar, win: xlib.Window) ?*Bar {
     return null;
 }
 
-fn has_clients_on_tag(monitor: *Monitor, tag_mask: u32) bool {
+fn hasClientsOnTag(monitor: *Monitor, tag_mask: u32) bool {
     var current = monitor.clients;
     while (current) |client| {
         if ((client.tags & tag_mask) != 0) return true;

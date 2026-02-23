@@ -42,10 +42,10 @@ pub const Date_Time = struct {
                 const next = self.datetime_format[fmt_idx + 1];
                 if (next == '-' and fmt_idx + 2 < self.datetime_format.len) {
                     const spec = self.datetime_format[fmt_idx + 2];
-                    dt_len += format_spec(spec, false, hours, minutes, seconds, day, month, year, dow, datetime_buf[dt_len..]);
+                    dt_len += formatSpec(spec, false, hours, minutes, seconds, day, month, year, dow, datetime_buf[dt_len..]);
                     fmt_idx += 3;
                 } else {
-                    dt_len += format_spec(next, true, hours, minutes, seconds, day, month, year, dow, datetime_buf[dt_len..]);
+                    dt_len += formatSpec(next, true, hours, minutes, seconds, day, month, year, dow, datetime_buf[dt_len..]);
                     fmt_idx += 2;
                 }
             } else {
@@ -58,7 +58,7 @@ pub const Date_Time = struct {
         return format_util.substitute(self.format, datetime_buf[0..dt_len], buffer);
     }
 
-    fn format_spec(spec: u8, pad: bool, hours: u32, minutes: u32, seconds: u32, day: u8, month: u8, year: i32, dow: i32, buf: []u8) usize {
+    fn formatSpec(spec: u8, pad: bool, hours: u32, minutes: u32, seconds: u32, day: u8, month: u8, year: i32, dow: i32, buf: []u8) usize {
         const day_names = [_][]const u8{ "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
         const month_names = [_][]const u8{ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
@@ -101,7 +101,7 @@ pub const Date_Time = struct {
         return self.interval_secs;
     }
 
-    pub fn get_color(self: *Date_Time) c_ulong {
+    pub fn getColor(self: *Date_Time) c_ulong {
         return self.color;
     }
 };

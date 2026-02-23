@@ -94,7 +94,7 @@ pub const WindowManager = struct {
         var display = try Display.open();
         errdefer display.close();
 
-        try display.become_window_manager();
+        try display.becomeWindowManager();
 
         const x11_fd = xlib.XConnectionNumber(display.handle);
 
@@ -102,8 +102,8 @@ pub const WindowManager = struct {
         const cursors = Cursors.init(&display);
         _ = xlib.XDefineCursor(display.handle, display.root, cursors.normal);
 
-        tiling.set_display(display.handle);
-        tiling.set_screen_size(display.screen_width(), display.screen_height());
+        tiling.setDisplay(display.handle);
+        tiling.setScreenSize(display.screenWidth(), display.screenHeight());
 
         var wm = WindowManager{
             .allocator = allocator,
@@ -126,16 +126,16 @@ pub const WindowManager = struct {
             .last_motion_monitor = null,
         };
 
-        wm.setup_monitors();
-        wm.setup_bars();
-        wm.setup_overlay();
+        wm.setupMonitors();
+        wm.setupBars();
+        wm.setupOverlay();
 
         return wm;
     }
 
     /// Release all allocated memory owned by the WM.
     pub fn deinit(self: *WindowManager) void {
-        bar_mod.destroy_bars(self.bars, self.display.handle);
+        bar_mod.destroyBars(self.bars, self.display.handle);
         self.bars = null;
 
         if (self.overlay) |o| {
@@ -158,7 +158,7 @@ pub const WindowManager = struct {
         self.config.deinit();
     }
 
-    fn setup_monitors(self: *WindowManager) void {
+    fn setupMonitors(self: *WindowManager) void {
         if (xlib.XineramaIsActive(self.display.handle) != 0) {
             var screen_count: c_int = 0;
             const screens = xlib.XineramaQueryScreens(self.display.handle, &screen_count);
@@ -194,7 +194,7 @@ pub const WindowManager = struct {
                         mon.pertag.ltidxs[i][4] = mon.lt[4];
                     }
 
-                    self.init_monitor_gaps(mon);
+                    self.initMonitorGaps(mon);
 
                     if (prev_monitor) |prev| {
                         prev.next = mon;
@@ -215,8 +215,8 @@ pub const WindowManager = struct {
             mon.num = 0;
             mon.mon_x = 0;
             mon.mon_y = 0;
-            mon.mon_w = self.display.screen_width();
-            mon.mon_h = self.display.screen_height();
+            mon.mon_w = self.display.screenWidth();
+            mon.mon_h = self.display.screenHeight();
             mon.win_x = 0;
             mon.win_y = 0;
             mon.win_w = mon.mon_w;
@@ -235,13 +235,13 @@ pub const WindowManager = struct {
                 mon.pertag.ltidxs[i][4] = mon.lt[4];
             }
 
-            self.init_monitor_gaps(mon);
+            self.initMonitorGaps(mon);
             self.monitors = mon;
             self.selected_monitor = mon;
         }
     }
 
-    fn init_monitor_gaps(self: *WindowManager, mon: *Monitor) void {
+    fn initMonitorGaps(self: *WindowManager, mon: *Monitor) void {
         const cfg = &self.config;
         const any_gap_nonzero = cfg.gap_inner_h != 0 or cfg.gap_inner_v != 0 or
             cfg.gap_outer_h != 0 or cfg.gap_outer_v != 0;
@@ -259,7 +259,7 @@ pub const WindowManager = struct {
         }
     }
 
-    pub fn setup_bars(self: *WindowManager) void {
+    pub fn setupBars(self: *WindowManager) void {
         var current_monitor = self.monitors;
         var last_bar: ?*Bar = null;
 
@@ -276,10 +276,10 @@ pub const WindowManager = struct {
             };
 
             if (tiling.bar_height == 0) {
-                tiling.set_bar_height(bar.height);
+                tiling.setBarHeight(bar.height);
             }
 
-            self.populate_bar_blocks(bar);
+            self.populateBarBlocks(bar);
 
             if (last_bar) |prev| {
                 prev.next = bar;
@@ -293,19 +293,19 @@ pub const WindowManager = struct {
         }
     }
 
-    pub fn populate_bar_blocks(self: *WindowManager, bar: *Bar) void {
+    pub fn populateBarBlocks(self: *WindowManager, bar: *Bar) void {
         if (self.config.blocks.items.len > 0) {
             for (self.config.blocks.items) |cfg_block| {
-                bar.add_block(config_block_to_bar_block(cfg_block));
+                bar.addBlock(configBlockToBarBlock(cfg_block));
             }
         } else {
-            bar.add_block(blocks_mod.Block.init_ram("", 5, 0x7aa2f7, true));
-            bar.add_block(blocks_mod.Block.init_static(" | ", 0x666666, false));
-            bar.add_block(blocks_mod.Block.init_datetime("", "%H:%M", 1, 0x0db9d7, true));
+            bar.addBlock(blocks_mod.Block.initRam("", 5, 0x7aa2f7, true));
+            bar.addBlock(blocks_mod.Block.initStatic(" | ", 0x666666, false));
+            bar.addBlock(blocks_mod.Block.initDatetime("", "%H:%M", 1, 0x0db9d7, true));
         }
     }
 
-    fn setup_overlay(self: *WindowManager) void {
+    fn setupOverlay(self: *WindowManager) void {
         self.overlay = overlay_mod.Keybind_Overlay.init(
             self.display.handle,
             self.display.screen,
@@ -317,18 +317,18 @@ pub const WindowManager = struct {
 
     // Wrap free functions in `bar_mod` with `self.bars` passed in.
 
-    pub fn invalidate_bars(self: *WindowManager) void {
-        bar_mod.invalidate_bars(self.bars);
+    pub fn invalidateBars(self: *WindowManager) void {
+        bar_mod.invalidateBars(self.bars);
     }
 
-    pub fn window_to_bar(self: *WindowManager, win: xlib.Window) ?*Bar {
-        return bar_mod.window_to_bar(self.bars, win);
+    pub fn windowToBar(self: *WindowManager, win: xlib.Window) ?*Bar {
+        return bar_mod.windowToBar(self.bars, win);
     }
 
     /// Refreshes the cached numlock modifier bitmask from the X server's
     /// current modifier map. Called before any key or button grab so that
     /// grabs cover all numlock combinations.
-    pub fn update_numlock_mask(self: *WindowManager) void {
+    pub fn updateNumlockMask(self: *WindowManager) void {
         self.numlock_mask = 0;
         const modmap = xlib.XGetModifierMapping(self.display.handle);
         if (modmap == null) return;
@@ -350,8 +350,8 @@ pub const WindowManager = struct {
 
     /// Grabs all configured keybinds and mouse buttons from the X server.
     /// Replaces any existing grabs. Call after config load or reload.
-    pub fn grab_keybinds(self: *WindowManager) void {
-        self.update_numlock_mask();
+    pub fn grabKeybinds(self: *WindowManager) void {
+        self.updateNumlockMask();
         const modifiers = [_]c_uint{ 0, xlib.LockMask, self.numlock_mask, self.numlock_mask | xlib.LockMask };
 
         _ = xlib.XUngrabKey(self.display.handle, xlib.AnyKey, xlib.AnyModifier, self.display.root);
@@ -397,14 +397,14 @@ pub const WindowManager = struct {
         std.debug.print("grabbed {d} keybinds from config\n", .{self.config.keybinds.items.len});
     }
 
-    pub fn ungrab_keybinds(self: *WindowManager) void {
+    pub fn ungrabKeybinds(self: *WindowManager) void {
         _ = xlib.XUngrabKey(self.display.handle, xlib.AnyKey, xlib.AnyModifier, self.display.root);
     }
 
-    /// Walk the existing window tree and call `manage_fn` for each window
+    /// Walk the existing window tree and call `manageFn` for each window
     /// that should be managed. Non-transient windows are processed first
     /// so transient (dialog) windows can be stacked on top.
-    pub fn scan_existing_windows(self: *WindowManager, manage_fn: fn (xlib.Window, *xlib.XWindowAttributes, *WindowManager) void) void {
+    pub fn scanExistingWindows(self: *WindowManager, manageFn: fn (xlib.Window, *xlib.XWindowAttributes, *WindowManager) void) void {
         var root_return: xlib.Window = undefined;
         var parent_return: xlib.Window = undefined;
         var children: [*c]xlib.Window = undefined;
@@ -425,8 +425,8 @@ pub const WindowManager = struct {
             var trans: xlib.Window = 0;
             if (xlib.XGetTransientForHint(self.display.handle, children[index], &trans) != 0) continue;
 
-            if (window_attrs.map_state == IsViewable or self.get_state(children[index]) == IconicState) {
-                manage_fn(children[index], &window_attrs, self);
+            if (window_attrs.map_state == IsViewable or self.getState(children[index]) == IconicState) {
+                manageFn(children[index], &window_attrs, self);
             }
         }
 
@@ -438,8 +438,8 @@ pub const WindowManager = struct {
             }
             var trans: xlib.Window = 0;
             if (xlib.XGetTransientForHint(self.display.handle, children[index], &trans) != 0) {
-                if (window_attrs.map_state == IsViewable or self.get_state(children[index]) == IconicState) {
-                    manage_fn(children[index], &window_attrs, self);
+                if (window_attrs.map_state == IsViewable or self.getState(children[index]) == IconicState) {
+                    manageFn(children[index], &window_attrs, self);
                 }
             }
         }
@@ -449,7 +449,7 @@ pub const WindowManager = struct {
 
     /// Reads the ICCCM WM_STATE property for a window.
     /// Returns WithdrawnState if the property is absent or malformed.
-    pub fn get_state(self: *WindowManager, window: xlib.Window) c_long {
+    pub fn getState(self: *WindowManager, window: xlib.Window) c_long {
         var actual_type: xlib.Atom = 0;
         var actual_format: c_int = 0;
         var num_items: c_ulong = 0;
@@ -483,12 +483,12 @@ pub const WindowManager = struct {
 
     /// Run the event loop until `self.running` is set to false.
     ///
-    /// `event_fn` dispatches a single XEvent
-    /// `tick_fn` is called once per loop iteration to advance animations
+    /// `eventFn` dispatches a single XEvent
+    /// `tickFn` is called once per loop iteration to advance animations
     pub fn run(
         self: *WindowManager,
-        event_fn: fn (*xlib.XEvent, *WindowManager) void,
-        tick_fn: fn (*WindowManager) void,
+        eventFn: fn (*xlib.XEvent, *WindowManager) void,
+        tickFn: fn (*WindowManager) void,
     ) void {
         var fds = [_]std.posix.pollfd{
             .{ .fd = self.x11_fd, .events = std.posix.POLL.IN, .revents = 0 },
@@ -498,81 +498,81 @@ pub const WindowManager = struct {
 
         while (self.running) {
             while (xlib.XPending(self.display.handle) > 0) {
-                var event = self.display.next_event();
-                event_fn(&event, self);
+                var event = self.display.nextEvent();
+                eventFn(&event, self);
             }
 
-            tick_fn(self);
+            tickFn(self);
 
             var current_bar = self.bars;
             while (current_bar) |bar| {
-                bar.update_blocks();
+                bar.updateBlocks();
                 bar.draw(self.display.handle, self.config);
                 current_bar = bar.next;
             }
 
-            const poll_timeout: i32 = if (self.scroll_animation.is_active()) 16 else 1000;
+            const poll_timeout: i32 = if (self.scroll_animation.isActive()) 16 else 1000;
             _ = std.posix.poll(&fds, poll_timeout) catch 0;
         }
     }
 
     /// Reloads the configuration
     ///
-    /// `load_fn` repopulates `self.config`
+    /// `loadFn` repopulates `self.config`
     /// keys/buttons are unbound before reload and rebound after
-    pub fn reload_config(
+    pub fn reloadConfig(
         self: *WindowManager,
-        load_fn: fn (*WindowManager) void,
+        loadFn: fn (*WindowManager) void,
     ) void {
         std.debug.print("reloading config...\n", .{});
 
-        self.ungrab_keybinds();
+        self.ungrabKeybinds();
 
         self.config.keybinds.clearRetainingCapacity();
         self.config.buttons.clearRetainingCapacity();
         self.config.rules.clearRetainingCapacity();
         self.config.blocks.clearRetainingCapacity();
 
-        load_fn(self);
+        loadFn(self);
 
-        bar_mod.destroy_bars(self.bars, self.display.handle);
+        bar_mod.destroyBars(self.bars, self.display.handle);
         self.bars = null;
-        self.setup_bars();
-        self.rebuild_bar_blocks();
+        self.setupBars();
+        self.rebuildBarBlocks();
 
-        self.grab_keybinds();
+        self.grabKeybinds();
     }
 
-    fn rebuild_bar_blocks(self: *WindowManager) void {
+    fn rebuildBarBlocks(self: *WindowManager) void {
         var current_bar = self.bars;
         while (current_bar) |bar| {
-            bar.clear_blocks();
-            self.populate_bar_blocks(bar);
+            bar.clearBlocks();
+            self.populateBarBlocks(bar);
             current_bar = bar.next;
         }
     }
 };
 
 /// Converts a config block description into a live status bar block.
-pub fn config_block_to_bar_block(cfg: config_mod.Block) blocks_mod.Block {
+pub fn configBlockToBarBlock(cfg: config_mod.Block) blocks_mod.Block {
     return switch (cfg.block_type) {
-        .static => blocks_mod.Block.init_static(cfg.format, cfg.color, cfg.underline),
-        .datetime => blocks_mod.Block.init_datetime(
+        .static => blocks_mod.Block.initStatic(cfg.format, cfg.color, cfg.underline),
+        .datetime => blocks_mod.Block.initDatetime(
             cfg.format,
             cfg.datetime_format orelse "%H:%M",
             cfg.interval,
             cfg.color,
             cfg.underline,
         ),
-        .ram => blocks_mod.Block.init_ram(cfg.format, cfg.interval, cfg.color, cfg.underline),
-        .shell => blocks_mod.Block.init_shell(
+        .ram => blocks_mod.Block.initRam(cfg.format, cfg.interval, cfg.color, cfg.underline),
+        .shell => blocks_mod.Block.initShell(
             cfg.format,
             cfg.command orelse "",
             cfg.interval,
             cfg.color,
             cfg.underline,
         ),
-        .battery => blocks_mod.Block.init_battery(
+        .battery => blocks_mod.Block.initBattery(
             cfg.format_charging orelse "",
             cfg.format_discharging orelse "",
             cfg.format_full orelse "",
@@ -581,7 +581,7 @@ pub fn config_block_to_bar_block(cfg: config_mod.Block) blocks_mod.Block {
             cfg.color,
             cfg.underline,
         ),
-        .cpu_temp => blocks_mod.Block.init_cpu_temp(
+        .cpu_temp => blocks_mod.Block.initCpuTemp(
             cfg.format,
             cfg.thermal_zone orelse "thermal_zone0",
             cfg.interval,

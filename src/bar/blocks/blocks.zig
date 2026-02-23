@@ -23,7 +23,7 @@ pub const Block = struct {
         cpu_temp: Cpu_Temp,
     };
 
-    pub fn init_static(text: []const u8, col: c_ulong, ul: bool) Block {
+    pub fn initStatic(text: []const u8, col: c_ulong, ul: bool) Block {
         var block = Block{
             .data = .{ .static = Static.init(text, col) },
             .last_update = 0,
@@ -36,7 +36,7 @@ pub const Block = struct {
         return block;
     }
 
-    pub fn init_datetime(format: []const u8, datetime_format: []const u8, interval_secs: u64, col: c_ulong, ul: bool) Block {
+    pub fn initDatetime(format: []const u8, datetime_format: []const u8, interval_secs: u64, col: c_ulong, ul: bool) Block {
         return .{
             .data = .{ .datetime = Date_Time.init(format, datetime_format, interval_secs, col) },
             .last_update = 0,
@@ -46,7 +46,7 @@ pub const Block = struct {
         };
     }
 
-    pub fn init_ram(format: []const u8, interval_secs: u64, col: c_ulong, ul: bool) Block {
+    pub fn initRam(format: []const u8, interval_secs: u64, col: c_ulong, ul: bool) Block {
         return .{
             .data = .{ .ram = Ram.init(format, interval_secs, col) },
             .last_update = 0,
@@ -56,7 +56,7 @@ pub const Block = struct {
         };
     }
 
-    pub fn init_shell(format: []const u8, command: []const u8, interval_secs: u64, col: c_ulong, ul: bool) Block {
+    pub fn initShell(format: []const u8, command: []const u8, interval_secs: u64, col: c_ulong, ul: bool) Block {
         return .{
             .data = .{ .shell = Shell.init(format, command, interval_secs, col) },
             .last_update = 0,
@@ -66,7 +66,7 @@ pub const Block = struct {
         };
     }
 
-    pub fn init_battery(
+    pub fn initBattery(
         format_charging: []const u8,
         format_discharging: []const u8,
         format_full: []const u8,
@@ -84,7 +84,7 @@ pub const Block = struct {
         };
     }
 
-    pub fn init_cpu_temp(
+    pub fn initCpuTemp(
         format: []const u8,
         thermal_zone: []const u8,
         interval_secs: u64,
@@ -146,7 +146,7 @@ pub const Block = struct {
         };
     }
 
-    pub fn get_content(self: *const Block) []const u8 {
+    pub fn getContent(self: *const Block) []const u8 {
         return self.cached_content[0..self.cached_len];
     }
 };

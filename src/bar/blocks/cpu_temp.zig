@@ -23,11 +23,11 @@ pub const Cpu_Temp = struct {
             .cached_path = undefined,
             .cached_path_len = 0,
         };
-        self.detect_path();
+        self.detectPath();
         return self;
     }
 
-    fn detect_path(self: *Cpu_Temp) void {
+    fn detectPath(self: *Cpu_Temp) void {
         if (self.device.len > 0 and self.device[0] == '/') {
             if (self.device.len <= self.cached_path.len) {
                 @memcpy(self.cached_path[0..self.device.len], self.device);
@@ -37,16 +37,16 @@ pub const Cpu_Temp = struct {
         }
 
         if (self.device.len > 0) {
-            if (self.try_path("/sys/class/thermal/{s}/temp", self.device)) return;
-            if (self.try_path("/sys/class/hwmon/{s}/temp1_input", self.device)) return;
+            if (self.tryPath("/sys/class/thermal/{s}/temp", self.device)) return;
+            if (self.tryPath("/sys/class/hwmon/{s}/temp1_input", self.device)) return;
         }
 
-        if (self.find_hwmon_cpu()) return;
+        if (self.findHwmonCpu()) return;
 
-        if (self.try_path("/sys/class/thermal/{s}/temp", "thermal_zone0")) return;
+        if (self.tryPath("/sys/class/thermal/{s}/temp", "thermal_zone0")) return;
     }
 
-    fn try_path(self: *Cpu_Temp, comptime fmt: []const u8, device: []const u8) bool {
+    fn tryPath(self: *Cpu_Temp, comptime fmt: []const u8, device: []const u8) bool {
         const path = std.fmt.bufPrint(&self.cached_path, fmt, .{device}) catch return false;
         const file = std.fs.openFileAbsolute(path, .{}) catch return false;
         file.close();
@@ -54,7 +54,7 @@ pub const Cpu_Temp = struct {
         return true;
     }
 
-    fn find_hwmon_cpu(self: *Cpu_Temp) bool {
+    fn findHwmonCpu(self: *Cpu_Temp) bool {
         var dir = std.fs.openDirAbsolute("/sys/class/hwmon", .{ .iterate = true }) catch return false;
         defer dir.close();
 
@@ -107,7 +107,7 @@ pub const Cpu_Temp = struct {
         return self.interval_secs;
     }
 
-    pub fn get_color(self: *Cpu_Temp) c_ulong {
+    pub fn getColor(self: *Cpu_Temp) c_ulong {
         return self.color;
     }
 };

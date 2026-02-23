@@ -73,7 +73,7 @@ pub fn detach(client: *Client) void {
 }
 
 /// Prepends `client` to the front of its monitor's focus stack.
-pub fn attach_stack(client: *Client) void {
+pub fn attachStack(client: *Client) void {
     if (client.monitor) |monitor| {
         client.stack_next = monitor.stack;
         monitor.stack = client;
@@ -81,7 +81,7 @@ pub fn attach_stack(client: *Client) void {
 }
 
 /// Removes `client` from its monitor's focus stack.
-pub fn detach_stack(client: *Client) void {
+pub fn detachStack(client: *Client) void {
     if (client.monitor) |monitor| {
         var current_ptr: *?*Client = &monitor.stack;
         while (current_ptr.*) |current| {
@@ -97,7 +97,7 @@ pub fn detach_stack(client: *Client) void {
 /// Searches all monitors for a client whose X window matches `window`.
 ///
 /// `monitors` is the head of the monitor linked list.
-pub fn window_to_client(monitors: ?*Monitor, window: xlib.Window) ?*Client {
+pub fn windowToClient(monitors: ?*Monitor, window: xlib.Window) ?*Client {
     var current_monitor = monitors;
     while (current_monitor) |monitor| {
         var current_client = monitor.clients;
@@ -112,7 +112,7 @@ pub fn window_to_client(monitors: ?*Monitor, window: xlib.Window) ?*Client {
 
 /// Returns true if `client` is visible on its monitor's currently selected
 /// tag set.
-pub fn is_visible(client: *Client) bool {
+pub fn isVisible(client: *Client) bool {
     if (client.monitor) |monitor| {
         return (client.tags & monitor.tagset[monitor.sel_tags]) != 0;
     }
@@ -120,15 +120,15 @@ pub fn is_visible(client: *Client) bool {
 }
 
 /// Returns true if `client` is visible on the given tag bitmask.
-pub fn is_visible_on_tag(client: *Client, tags: u32) bool {
+pub fn isVisibleOnTag(client: *Client, tags: u32) bool {
     return (client.tags & tags) != 0;
 }
 
 /// Returns the first non-floating, visible client at or after `client`.
-pub fn next_tiled(client: ?*Client) ?*Client {
+pub fn nextTiled(client: ?*Client) ?*Client {
     var current = client;
     while (current) |iter| {
-        if (!iter.is_floating and is_visible(iter)) return iter;
+        if (!iter.is_floating and isVisible(iter)) return iter;
         current = iter.next;
     }
     return null;
@@ -136,11 +136,11 @@ pub fn next_tiled(client: ?*Client) ?*Client {
 
 /// Returns the first non-floating client on `client`'s monitor that shares
 /// any tag with `client`. Used for `attach_aside` ordering.
-pub fn next_tagged(client: *Client) ?*Client {
+pub fn nextTagged(client: *Client) ?*Client {
     const monitor = client.monitor orelse return null;
     var walked = monitor.clients;
     while (walked) |iter| {
-        if (!iter.is_floating and is_visible_on_tag(iter, client.tags)) return iter;
+        if (!iter.is_floating and isVisibleOnTag(iter, client.tags)) return iter;
         walked = iter.next;
     }
     return null;
@@ -148,8 +148,8 @@ pub fn next_tagged(client: *Client) ?*Client {
 
 /// Inserts `client` just after the first client that shares its tags,
 /// falling back to prepend if none exists.
-pub fn attach_aside(client: *Client) void {
-    const at = next_tagged(client);
+pub fn attachAside(client: *Client) void {
+    const at = nextTagged(client);
     if (at == null) {
         attach(client);
         return;
@@ -159,19 +159,19 @@ pub fn attach_aside(client: *Client) void {
 }
 
 /// Counts non-floating, visible clients on `monitor`.
-pub fn count_tiled(monitor: *Monitor) u32 {
+pub fn countTiled(monitor: *Monitor) u32 {
     var count: u32 = 0;
-    var current = next_tiled(monitor.clients);
+    var current = nextTiled(monitor.clients);
     while (current) |client| {
         count += 1;
-        current = next_tiled(client.next);
+        current = nextTiled(client.next);
     }
     return count;
 }
 
 /// Returns the tiled client on `monitor` whose bounds contain (`point_x`,
 /// `point_y`), excluding `exclude`.  Returns null if none found.
-pub fn tiled_window_at(exclude: *Client, monitor: *Monitor, point_x: i32, point_y: i32) ?*Client {
+pub fn tiledWindowAt(exclude: *Client, monitor: *Monitor, point_x: i32, point_y: i32) ?*Client {
     const tags = monitor.tagset[monitor.sel_tags];
     var current = monitor.clients;
 
@@ -193,7 +193,7 @@ pub fn tiled_window_at(exclude: *Client, monitor: *Monitor, point_x: i32, point_
 
 /// Moves `client` to just before `target` in the monitor's client list.
 /// Does nothing if they are on different monitors.
-pub fn insert_before(client: *Client, target: *Client) void {
+pub fn insertBefore(client: *Client, target: *Client) void {
     const monitor = target.monitor orelse return;
     if (client.monitor != monitor) return;
 
@@ -218,7 +218,7 @@ pub fn insert_before(client: *Client, target: *Client) void {
 
 /// Swaps the positions of `client_a` and `client_b` in their shared monitor's
 /// client list.  Does nothing if they are on different monitors.
-pub fn swap_clients(client_a: *Client, client_b: *Client) void {
+pub fn swapClients(client_a: *Client, client_b: *Client) void {
     const monitor = client_a.monitor orelse return;
     if (client_b.monitor != monitor) return;
 

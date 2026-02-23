@@ -62,7 +62,7 @@ pub const Scroll_Animation = struct {
         return @intFromFloat(current);
     }
 
-    pub fn is_active(self: *const Scroll_Animation) bool {
+    pub fn isActive(self: *const Scroll_Animation) bool {
         return self.active;
     }
 

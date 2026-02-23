@@ -15,7 +15,7 @@ const WindowManager = wm_mod.WindowManager;
 
 const snap_distance: i32 = 32;
 
-pub fn spawn_child_setup(wm: *WindowManager) void {
+pub fn spawnChildSetup(wm: *WindowManager) void {
     _ = std.c.setsid();
     if (wm.x11_fd >= 0) std.posix.close(@intCast(wm.x11_fd));
     const sigchld_handler = std.posix.Sigaction{
@@ -26,11 +26,11 @@ pub fn spawn_child_setup(wm: *WindowManager) void {
     std.posix.sigaction(std.posix.SIG.CHLD, &sigchld_handler, null);
 }
 
-pub fn spawn_command(wm: *WindowManager, cmd: []const u8) void {
+pub fn spawnCommand(wm: *WindowManager, cmd: []const u8) void {
     std.debug.print("running cmd: {s}\n", .{cmd});
     const pid = std.posix.fork() catch return;
     if (pid == 0) {
-        spawn_child_setup(wm);
+        spawnChildSetup(wm);
         var cmd_buf: [1024]u8 = undefined;
         if (cmd.len >= cmd_buf.len) {
             std.posix.exit(1);
@@ -43,10 +43,10 @@ pub fn spawn_command(wm: *WindowManager, cmd: []const u8) void {
     }
 }
 
-pub fn spawn_terminal(wm: *WindowManager) void {
+pub fn spawnTerminal(wm: *WindowManager) void {
     const pid = std.posix.fork() catch return;
     if (pid == 0) {
-        spawn_child_setup(wm);
+        spawnChildSetup(wm);
         var term_buf: [256]u8 = undefined;
         const terminal = wm.config.terminal;
         if (terminal.len >= term_buf.len) {
@@ -74,7 +74,7 @@ pub fn movestack(direction: i32, wm: *WindowManager) void {
     if (direction > 0) {
         target = current.next;
         while (target) |client| {
-            if (client_mod.is_visible(client) and !client.is_floating) {
+            if (client_mod.isVisible(client) and !client.is_floating) {
                 break;
             }
             target = client.next;
@@ -85,7 +85,7 @@ pub fn movestack(direction: i32, wm: *WindowManager) void {
                 if (client == current) {
                     break;
                 }
-                if (client_mod.is_visible(client) and !client.is_floating) {
+                if (client_mod.isVisible(client) and !client.is_floating) {
                     break;
                 }
                 target = client.next;
@@ -98,7 +98,7 @@ pub fn movestack(direction: i32, wm: *WindowManager) void {
             if (client == current) {
                 break;
             }
-            if (client_mod.is_visible(client) and !client.is_floating) {
+            if (client_mod.isVisible(client) and !client.is_floating) {
                 prev = client;
             }
             iter = client.next;
@@ -106,7 +106,7 @@ pub fn movestack(direction: i32, wm: *WindowManager) void {
         if (prev == null) {
             iter = current.next;
             while (iter) |client| {
-                if (client_mod.is_visible(client) and !client.is_floating) {
+                if (client_mod.isVisible(client) and !client.is_floating) {
                     prev = client;
                 }
                 iter = client.next;
@@ -117,14 +117,14 @@ pub fn movestack(direction: i32, wm: *WindowManager) void {
 
     if (target) |swap_client| {
         if (swap_client != current) {
-            client_mod.swap_clients(current, swap_client);
+            client_mod.swapClients(current, swap_client);
             core.arrange(monitor, wm);
             core.focus(current, wm);
         }
     }
 }
 
-pub fn toggle_view(tag_mask: u32, wm: *WindowManager) void {
+pub fn toggleView(tag_mask: u32, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const new_tags = monitor.tagset[monitor.sel_tags] ^ tag_mask;
     if (new_tags != 0) {
@@ -148,25 +148,25 @@ pub fn toggle_view(tag_mask: u32, wm: *WindowManager) void {
         monitor.mfact = monitor.pertag.mfacts[monitor.pertag.curtag];
         monitor.sel_lt = monitor.pertag.sellts[monitor.pertag.curtag];
 
-        core.focus_top_client(monitor, wm);
+        core.focusTopClient(monitor, wm);
         core.arrange(monitor, wm);
-        wm.invalidate_bars();
+        wm.invalidateBars();
     }
 }
 
-pub fn toggle_client_tag(tag_mask: u32, wm: *WindowManager) void {
+pub fn toggleClientTag(tag_mask: u32, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const client = monitor.sel orelse return;
     const new_tags = client.tags ^ tag_mask;
     if (new_tags != 0) {
         client.tags = new_tags;
-        core.focus_top_client(monitor, wm);
+        core.focusTopClient(monitor, wm);
         core.arrange(monitor, wm);
-        wm.invalidate_bars();
+        wm.invalidateBars();
     }
 }
 
-pub fn toggle_gaps(wm: *WindowManager) void {
+pub fn toggleGaps(wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     if (monitor.gap_inner_h == 0) {
         monitor.gap_inner_h = wm.config.gap_inner_h;
@@ -182,12 +182,12 @@ pub fn toggle_gaps(wm: *WindowManager) void {
     core.arrange(monitor, wm);
 }
 
-pub fn kill_focused(wm: *WindowManager) void {
+pub fn killFocused(wm: *WindowManager) void {
     const selected = wm.selected_monitor orelse return;
     const client = selected.sel orelse return;
     std.debug.print("killing window: 0x{x}\n", .{client.window});
 
-    if (!core.send_event(client, wm.atoms.wm_delete, wm)) {
+    if (!core.sendEvent(client, wm.atoms.wm_delete, wm)) {
         _ = xlib.XGrabServer(wm.display.handle);
         _ = xlib.XKillClient(wm.display.handle, client.window);
         _ = xlib.XSync(wm.display.handle, xlib.False);
@@ -195,13 +195,13 @@ pub fn kill_focused(wm: *WindowManager) void {
     }
 }
 
-pub fn toggle_fullscreen(wm: *WindowManager) void {
+pub fn toggleFullscreen(wm: *WindowManager) void {
     const selected = wm.selected_monitor orelse return;
     const client = selected.sel orelse return;
-    core.set_fullscreen(client, !client.is_fullscreen, wm);
+    core.setFullscreen(client, !client.is_fullscreen, wm);
 }
 
-pub fn view_adjacent_tag(direction: i32, wm: *WindowManager) void {
+pub fn viewAdjacentTag(direction: i32, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const current_tag = monitor.pertag.curtag;
     var new_tag: i32 = @intCast(current_tag);
@@ -214,7 +214,7 @@ pub fn view_adjacent_tag(direction: i32, wm: *WindowManager) void {
     core.view(tag_mask, wm);
 }
 
-pub fn view_adjacent_nonempty_tag(direction: i32, wm: *WindowManager) void {
+pub fn viewAdjacentNonemptyTag(direction: i32, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const current_tag = monitor.pertag.curtag;
     var new_tag: i32 = @intCast(current_tag);
@@ -226,23 +226,23 @@ pub fn view_adjacent_nonempty_tag(direction: i32, wm: *WindowManager) void {
         if (new_tag > 9) new_tag = 1;
 
         const tag_mask: u32 = @as(u32, 1) << @intCast(new_tag - 1);
-        if (core.has_clients_on_tag(monitor, tag_mask)) {
+        if (core.hasClientsOnTag(monitor, tag_mask)) {
             core.view(tag_mask, wm);
             return;
         }
     }
 }
 
-pub fn tag_client(tag_mask: u32, wm: *WindowManager) void {
+pub fn tagClient(tag_mask: u32, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const client = monitor.sel orelse return;
     if (tag_mask == 0) {
         return;
     }
     client.tags = tag_mask;
-    core.focus_top_client(monitor, wm);
+    core.focusTopClient(monitor, wm);
     core.arrange(monitor, wm);
-    wm.invalidate_bars();
+    wm.invalidateBars();
     std.debug.print("tag_client: window=0x{x} tag_mask={d}\n", .{ client.window, tag_mask });
 }
 
@@ -255,7 +255,7 @@ pub fn focusstack(direction: i32, wm: *WindowManager) void {
     if (direction > 0) {
         next_client = current.next;
         while (next_client) |client| {
-            if (client_mod.is_visible(client)) {
+            if (client_mod.isVisible(client)) {
                 break;
             }
             next_client = client.next;
@@ -263,7 +263,7 @@ pub fn focusstack(direction: i32, wm: *WindowManager) void {
         if (next_client == null) {
             next_client = monitor.clients;
             while (next_client) |client| {
-                if (client_mod.is_visible(client)) {
+                if (client_mod.isVisible(client)) {
                     break;
                 }
                 next_client = client.next;
@@ -276,7 +276,7 @@ pub fn focusstack(direction: i32, wm: *WindowManager) void {
             if (client == current) {
                 break;
             }
-            if (client_mod.is_visible(client)) {
+            if (client_mod.isVisible(client)) {
                 prev = client;
             }
             iter = client.next;
@@ -284,7 +284,7 @@ pub fn focusstack(direction: i32, wm: *WindowManager) void {
         if (prev == null) {
             iter = current.next;
             while (iter) |client| {
-                if (client_mod.is_visible(client)) {
+                if (client_mod.isVisible(client)) {
                     prev = client;
                 }
                 iter = client.next;
@@ -301,7 +301,7 @@ pub fn focusstack(direction: i32, wm: *WindowManager) void {
     }
 }
 
-pub fn toggle_floating(wm: *WindowManager) void {
+pub fn toggleFloating(wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const client = monitor.sel orelse return;
 
@@ -340,7 +340,7 @@ pub fn setmfact(delta: f32, wm: *WindowManager) void {
     std.debug.print("setmfact: mfact={d:.2}\n", .{monitor.mfact});
 }
 
-pub fn cycle_layout(wm: *WindowManager) void {
+pub fn cycleLayout(wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const new_lt = (monitor.sel_lt + 1) % 5;
     monitor.sel_lt = new_lt;
@@ -349,13 +349,13 @@ pub fn cycle_layout(wm: *WindowManager) void {
         monitor.scroll_offset = 0;
     }
     core.arrange(monitor, wm);
-    wm.invalidate_bars();
+    wm.invalidateBars();
     if (monitor.lt[monitor.sel_lt]) |layout| {
         std.debug.print("cycle_layout: {s}\n", .{layout.symbol});
     }
 }
 
-pub fn set_layout(layout_name: ?[]const u8, wm: *WindowManager) void {
+pub fn setLayout(layout_name: ?[]const u8, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const name = layout_name orelse return;
 
@@ -380,13 +380,13 @@ pub fn set_layout(layout_name: ?[]const u8, wm: *WindowManager) void {
         monitor.scroll_offset = 0;
     }
     core.arrange(monitor, wm);
-    wm.invalidate_bars();
+    wm.invalidateBars();
     if (monitor.lt[monitor.sel_lt]) |layout| {
         std.debug.print("set_layout: {s}\n", .{layout.symbol});
     }
 }
 
-pub fn set_layout_index(index: u32, wm: *WindowManager) void {
+pub fn setLayoutIndex(index: u32, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     monitor.sel_lt = index;
     monitor.pertag.sellts[monitor.pertag.curtag] = index;
@@ -394,7 +394,7 @@ pub fn set_layout_index(index: u32, wm: *WindowManager) void {
         monitor.scroll_offset = 0;
     }
     core.arrange(monitor, wm);
-    wm.invalidate_bars();
+    wm.invalidateBars();
     if (monitor.lt[monitor.sel_lt]) |layout| {
         std.debug.print("set_layout_index: {s}\n", .{layout.symbol});
     }
@@ -402,11 +402,11 @@ pub fn set_layout_index(index: u32, wm: *WindowManager) void {
 
 pub fn focusmon(direction: i32, wm: *WindowManager) void {
     const selmon = wm.selected_monitor orelse return;
-    const target = monitor_mod.dir_to_monitor(wm, direction) orelse return;
+    const target = monitor_mod.dirToMonitor(wm, direction) orelse return;
     if (target == selmon) {
         return;
     }
-    core.unfocus_client(selmon.sel, false, wm);
+    core.unfocusClient(selmon.sel, false, wm);
     wm.selected_monitor = target;
     core.focus(null, wm);
     std.debug.print("focusmon: monitor {d}\n", .{target.num});
@@ -415,27 +415,27 @@ pub fn focusmon(direction: i32, wm: *WindowManager) void {
 pub fn sendmon(direction: i32, wm: *WindowManager) void {
     const source_monitor = wm.selected_monitor orelse return;
     const client = source_monitor.sel orelse return;
-    const target = monitor_mod.dir_to_monitor(wm, direction) orelse return;
+    const target = monitor_mod.dirToMonitor(wm, direction) orelse return;
 
     if (target == source_monitor) {
         return;
     }
 
     client_mod.detach(client);
-    client_mod.detach_stack(client);
+    client_mod.detachStack(client);
     client.monitor = target;
     client.tags = target.tagset[target.sel_tags];
-    client_mod.attach_aside(client);
-    client_mod.attach_stack(client);
+    client_mod.attachAside(client);
+    client_mod.attachStack(client);
 
-    core.focus_top_client(source_monitor, wm);
+    core.focusTopClient(source_monitor, wm);
     core.arrange(source_monitor, wm);
     core.arrange(target, wm);
 
     std.debug.print("sendmon: window=0x{x} to monitor {d}\n", .{ client.window, target.num });
 }
 
-pub fn snap_x(client: *Client, new_x: i32, monitor: *Monitor) i32 {
+pub fn snapX(client: *Client, new_x: i32, monitor: *Monitor) i32 {
     const client_width = client.width + 2 * client.border_width;
     if (@abs(monitor.win_x - new_x) < snap_distance) {
         return monitor.win_x;
@@ -445,7 +445,7 @@ pub fn snap_x(client: *Client, new_x: i32, monitor: *Monitor) i32 {
     return new_x;
 }
 
-pub fn snap_y(client: *Client, new_y: i32, monitor: *Monitor) i32 {
+pub fn snapY(client: *Client, new_y: i32, monitor: *Monitor) i32 {
     const client_height = client.height + 2 * client.border_width;
     if (@abs(monitor.win_y - new_y) < snap_distance) {
         return monitor.win_y;
@@ -518,8 +518,8 @@ pub fn movemouse(wm: *WindowManager) void {
                 var new_x = start_x + delta_x;
                 var new_y = start_y + delta_y;
                 if (client.monitor) |client_monitor| {
-                    new_x = snap_x(client, new_x, client_monitor);
-                    new_y = snap_y(client, new_y, client_monitor);
+                    new_x = snapX(client, new_x, client_monitor);
+                    new_y = snapY(client, new_y, client_monitor);
                 }
                 tiling.resize(client, new_x, new_y, client.width, client.height, true);
             },
@@ -532,14 +532,14 @@ pub fn movemouse(wm: *WindowManager) void {
 
     _ = xlib.XUngrabPointer(wm.display.handle, xlib.CurrentTime);
 
-    const new_mon = monitor_mod.rect_to_monitor(wm, client.x, client.y, client.width, client.height);
+    const new_mon = monitor_mod.rectToMonitor(wm, client.x, client.y, client.width, client.height);
     if (new_mon != null and new_mon != monitor) {
         client_mod.detach(client);
-        client_mod.detach_stack(client);
+        client_mod.detachStack(client);
         client.monitor = new_mon;
         client.tags = new_mon.?.tagset[new_mon.?.sel_tags];
-        client_mod.attach_aside(client);
-        client_mod.attach_stack(client);
+        client_mod.attachAside(client);
+        client_mod.attachStack(client);
         wm.selected_monitor = new_mon;
         core.focus(client, wm);
         core.arrange(monitor, wm);
@@ -553,8 +553,8 @@ pub fn movemouse(wm: *WindowManager) void {
         const center_x = client.x + @divTrunc(client.width, 2);
         const center_y = client.y + @divTrunc(client.height, 2);
 
-        if (client_mod.tiled_window_at(client, drop_monitor, center_x, center_y)) |target| {
-            client_mod.insert_before(client, target);
+        if (client_mod.tiledWindowAt(client, drop_monitor, center_x, center_y)) |target| {
+            client_mod.insertBefore(client, target);
         }
 
         client.is_floating = false;
@@ -635,16 +635,16 @@ pub fn resizemouse(wm: *WindowManager) void {
     core.arrange(monitor, wm);
 }
 
-/// Config-loading callback for wm.reload_config().
+/// Config-loading callback for wm.reloadConfig().
 /// Re-initialises Lua and loads the config file (or falls back to defaults).
-pub fn reload_load_config(wm: *WindowManager) void {
+pub fn reloadLoadConfig(wm: *WindowManager) void {
     lua.deinit();
     _ = lua.init(&wm.config);
 
     const loaded = if (wm.config_path) |path|
-        lua.load_file(path)
+        lua.loadFile(path)
     else
-        lua.load_config();
+        lua.loadConfig();
 
     if (loaded) {
         if (wm.config_path) |path| {
@@ -654,23 +654,23 @@ pub fn reload_load_config(wm: *WindowManager) void {
         }
     } else {
         std.debug.print("reload failed, restoring defaults\n", .{});
-        config_mod.initialize_default_config(&wm.config);
+        config_mod.initializeDefaultConfig(&wm.config);
     }
 }
 
-pub fn execute_action(action: config_mod.Action, int_arg: i32, str_arg: ?[]const u8, wm: *WindowManager) void {
+pub fn executeAction(action: config_mod.Action, int_arg: i32, str_arg: ?[]const u8, wm: *WindowManager) void {
     switch (action) {
-        .spawn_terminal => spawn_terminal(wm),
+        .spawn_terminal => spawnTerminal(wm),
         .spawn => {
-            if (str_arg) |cmd| spawn_command(wm, cmd);
+            if (str_arg) |cmd| spawnCommand(wm, cmd);
         },
-        .kill_client => kill_focused(wm),
+        .kill_client => killFocused(wm),
         .quit => {
             std.debug.print("quit keybind pressed\n", .{});
             wm.running = false;
         },
-        .reload_config => wm.reload_config(reload_load_config),
-        .restart => wm.reload_config(reload_load_config),
+        .reload_config => wm.reloadConfig(reloadLoadConfig),
+        .restart => wm.reloadConfig(reloadLoadConfig),
         .show_keybinds => {
             if (wm.overlay) |overlay| {
                 const mon = wm.selected_monitor orelse wm.monitors;
@@ -686,36 +686,36 @@ pub fn execute_action(action: config_mod.Action, int_arg: i32, str_arg: ?[]const
         .resize_master => setmfact(@as(f32, @floatFromInt(int_arg)) / 1000.0, wm),
         .inc_master => incnmaster(1, wm),
         .dec_master => incnmaster(-1, wm),
-        .toggle_floating => toggle_floating(wm),
-        .toggle_fullscreen => toggle_fullscreen(wm),
-        .toggle_gaps => toggle_gaps(wm),
-        .cycle_layout => cycle_layout(wm),
-        .set_layout => set_layout(str_arg, wm),
-        .set_layout_tiling => set_layout_index(0, wm),
-        .set_layout_floating => set_layout_index(2, wm),
+        .toggle_floating => toggleFloating(wm),
+        .toggle_fullscreen => toggleFullscreen(wm),
+        .toggle_gaps => toggleGaps(wm),
+        .cycle_layout => cycleLayout(wm),
+        .set_layout => setLayout(str_arg, wm),
+        .set_layout_tiling => setLayoutIndex(0, wm),
+        .set_layout_floating => setLayoutIndex(2, wm),
         .view_tag => {
             const tag_mask: u32 = @as(u32, 1) << @intCast(int_arg);
             core.view(tag_mask, wm);
         },
-        .view_next_tag => view_adjacent_tag(1, wm),
-        .view_prev_tag => view_adjacent_tag(-1, wm),
-        .view_next_nonempty_tag => view_adjacent_nonempty_tag(1, wm),
-        .view_prev_nonempty_tag => view_adjacent_nonempty_tag(-1, wm),
+        .view_next_tag => viewAdjacentTag(1, wm),
+        .view_prev_tag => viewAdjacentTag(-1, wm),
+        .view_next_nonempty_tag => viewAdjacentNonemptyTag(1, wm),
+        .view_prev_nonempty_tag => viewAdjacentNonemptyTag(-1, wm),
         .move_to_tag => {
             const tag_mask: u32 = @as(u32, 1) << @intCast(int_arg);
-            tag_client(tag_mask, wm);
+            tagClient(tag_mask, wm);
         },
         .toggle_view_tag => {
             const tag_mask: u32 = @as(u32, 1) << @intCast(int_arg);
-            toggle_view(tag_mask, wm);
+            toggleView(tag_mask, wm);
         },
         .toggle_tag => {
             const tag_mask: u32 = @as(u32, 1) << @intCast(int_arg);
-            toggle_client_tag(tag_mask, wm);
+            toggleClientTag(tag_mask, wm);
         },
         .focus_monitor => focusmon(int_arg, wm),
         .send_to_monitor => sendmon(int_arg, wm),
-        .scroll_left => core.scroll_layout(-1, wm),
-        .scroll_right => core.scroll_layout(1, wm),
+        .scroll_left => core.scrollLayout(-1, wm),
+        .scroll_right => core.scrollLayout(1, wm),
     }
 }

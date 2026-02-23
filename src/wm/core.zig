@@ -27,10 +27,10 @@ pub fn manage(win: xlib.Window, window_attrs: *xlib.XWindowAttributes, wm: *Wind
     client.old_border_width = window_attrs.border_width;
     client.border_width = wm.config.border_width;
 
-    update_title(client, wm);
+    updateTitle(client, wm);
 
     if (xlib.XGetTransientForHint(wm.display.handle, win, &trans) != 0) {
-        if (client_mod.window_to_client(wm.monitors, trans)) |transient_client| {
+        if (client_mod.windowToClient(wm.monitors, trans)) |transient_client| {
             client.monitor = transient_client.monitor;
             client.tags = transient_client.tags;
         }
@@ -38,7 +38,7 @@ pub fn manage(win: xlib.Window, window_attrs: *xlib.XWindowAttributes, wm: *Wind
 
     if (client.monitor == null) {
         client.monitor = wm.selected_monitor;
-        apply_rules(client, wm);
+        applyRules(client, wm);
     }
 
     const monitor = client.monitor orelse return;
@@ -54,11 +54,11 @@ pub fn manage(win: xlib.Window, window_attrs: *xlib.XWindowAttributes, wm: *Wind
 
     _ = xlib.XSetWindowBorderWidth(wm.display.handle, win, @intCast(client.border_width));
     _ = xlib.XSetWindowBorder(wm.display.handle, win, wm.config.border_unfocused);
-    tiling.send_configure(client);
+    tiling.sendConfigure(client);
 
-    update_window_type(client, wm);
-    update_size_hints(client, wm);
-    update_wm_hints(client, wm);
+    updateWindowType(client, wm);
+    updateSizeHints(client, wm);
+    updateWmHints(client, wm);
 
     _ = xlib.XSelectInput(
         wm.display.handle,
@@ -75,20 +75,20 @@ pub fn manage(win: xlib.Window, window_attrs: *xlib.XWindowAttributes, wm: *Wind
         _ = xlib.XRaiseWindow(wm.display.handle, client.window);
     }
 
-    client_mod.attach_aside(client);
-    client_mod.attach_stack(client);
+    client_mod.attachAside(client);
+    client_mod.attachStack(client);
 
     _ = xlib.XChangeProperty(wm.display.handle, wm.display.root, wm.atoms.net_client_list, xlib.XA_WINDOW, 32, xlib.PropModeAppend, @ptrCast(&client.window), 1);
-    _ = xlib.XMoveResizeWindow(wm.display.handle, client.window, client.x + 2 * wm.display.screen_width(), client.y, @intCast(client.width), @intCast(client.height));
-    set_client_state(client, NormalState, wm);
+    _ = xlib.XMoveResizeWindow(wm.display.handle, client.window, client.x + 2 * wm.display.screenWidth(), client.y, @intCast(client.width), @intCast(client.height));
+    setClientState(client, NormalState, wm);
 
     if (client.monitor == wm.selected_monitor) {
         const selmon = wm.selected_monitor orelse return;
-        unfocus_client(selmon.sel, false, wm);
+        unfocusClient(selmon.sel, false, wm);
     }
     monitor.sel = client;
 
-    if (is_scrolling_layout(monitor)) {
+    if (isScrollingLayout(monitor)) {
         monitor.scroll_offset = 0;
     }
 
@@ -102,7 +102,7 @@ pub fn unmanage(client: *Client, wm: *WindowManager) void {
 
     var next_focus: ?*Client = null;
     if (client_monitor) |monitor| {
-        if (monitor.sel == client and is_scrolling_layout(monitor)) {
+        if (monitor.sel == client and isScrollingLayout(monitor)) {
             next_focus = client.next;
             if (next_focus == null) {
                 var prev: ?*Client = null;
@@ -118,16 +118,16 @@ pub fn unmanage(client: *Client, wm: *WindowManager) void {
     }
 
     client_mod.detach(client);
-    client_mod.detach_stack(client);
+    client_mod.detachStack(client);
 
     if (client_monitor) |monitor| {
         if (monitor.sel == client) {
             monitor.sel = if (next_focus) |nf| nf else monitor.stack;
         }
-        if (is_scrolling_layout(monitor)) {
-            const target = if (monitor.sel) |sel| scrolling.get_target_scroll_for_window(monitor, sel) else 0;
+        if (isScrollingLayout(monitor)) {
+            const target = if (monitor.sel) |sel| scrolling.getTargetScrollForWindow(monitor, sel) else 0;
             if (target == 0) {
-                monitor.scroll_offset = scrolling.get_scroll_step(monitor);
+                monitor.scroll_offset = scrolling.getScrollStep(monitor);
             } else {
                 monitor.scroll_offset = 0;
             }
@@ -142,24 +142,24 @@ pub fn unmanage(client: *Client, wm: *WindowManager) void {
     }
 
     client_mod.destroy(wm.allocator, client);
-    update_client_list(wm);
-    wm.invalidate_bars();
+    updateClientList(wm);
+    wm.invalidateBars();
 }
 
 pub fn focus(target_client: ?*Client, wm: *WindowManager) void {
     const selmon = wm.selected_monitor orelse return;
 
     var focus_client = target_client;
-    if (focus_client == null or !client_mod.is_visible(focus_client.?)) {
+    if (focus_client == null or !client_mod.isVisible(focus_client.?)) {
         focus_client = selmon.stack;
         while (focus_client) |iter| {
-            if (client_mod.is_visible(iter)) break;
+            if (client_mod.isVisible(iter)) break;
             focus_client = iter.stack_next;
         }
     }
 
     if (selmon.sel != null and selmon.sel != focus_client) {
-        unfocus_client(selmon.sel, false, wm);
+        unfocusClient(selmon.sel, false, wm);
     }
 
     if (focus_client) |client| {
@@ -167,17 +167,17 @@ pub fn focus(target_client: ?*Client, wm: *WindowManager) void {
             wm.selected_monitor = client.monitor;
         }
         if (client.is_urgent) {
-            set_urgent(client, false, wm);
+            setUrgent(client, false, wm);
         }
-        client_mod.detach_stack(client);
-        client_mod.attach_stack(client);
+        client_mod.detachStack(client);
+        client_mod.attachStack(client);
         grabbuttons(client, true, wm);
         _ = xlib.XSetWindowBorder(wm.display.handle, client.window, wm.config.border_focused);
         if (!client.never_focus) {
             _ = xlib.XSetInputFocus(wm.display.handle, client.window, xlib.RevertToPointerRoot, xlib.CurrentTime);
             _ = xlib.XChangeProperty(wm.display.handle, wm.display.root, wm.atoms.net_active_window, xlib.XA_WINDOW, 32, xlib.PropModeReplace, @ptrCast(&client.window), 1);
         }
-        _ = send_event(client, wm.atoms.wm_take_focus, wm);
+        _ = sendEvent(client, wm.atoms.wm_take_focus, wm);
     } else {
         _ = xlib.XSetInputFocus(wm.display.handle, wm.display.root, xlib.RevertToPointerRoot, xlib.CurrentTime);
         _ = xlib.XDeleteProperty(wm.display.handle, wm.display.root, wm.atoms.net_active_window);
@@ -187,15 +187,15 @@ pub fn focus(target_client: ?*Client, wm: *WindowManager) void {
     current_selmon.sel = focus_client;
 
     if (focus_client) |client| {
-        if (is_scrolling_layout(current_selmon)) {
-            scroll_to_window(client, true, wm);
+        if (isScrollingLayout(current_selmon)) {
+            scrollToWindow(client, true, wm);
         }
     }
 
-    wm.invalidate_bars();
+    wm.invalidateBars();
 }
 
-pub fn unfocus_client(client: ?*Client, reset_input_focus: bool, wm: *WindowManager) void {
+pub fn unfocusClient(client: ?*Client, reset_input_focus: bool, wm: *WindowManager) void {
     const unfocus_target = client orelse return;
     grabbuttons(unfocus_target, false, wm);
     _ = xlib.XSetWindowBorder(wm.display.handle, unfocus_target.window, wm.config.border_unfocused);
@@ -205,16 +205,16 @@ pub fn unfocus_client(client: ?*Client, reset_input_focus: bool, wm: *WindowMana
     }
 }
 
-pub fn set_focus(client: *Client, wm: *WindowManager) void {
+pub fn setFocus(client: *Client, wm: *WindowManager) void {
     if (!client.never_focus) {
         _ = xlib.XSetInputFocus(wm.display.handle, client.window, xlib.RevertToPointerRoot, xlib.CurrentTime);
         _ = xlib.XChangeProperty(wm.display.handle, wm.display.root, wm.atoms.net_active_window, xlib.XA_WINDOW, 32, xlib.PropModeReplace, @ptrCast(&client.window), 1);
     }
-    _ = send_event(client, wm.atoms.wm_take_focus, wm);
+    _ = sendEvent(client, wm.atoms.wm_take_focus, wm);
 }
 
 pub fn restack(monitor: *Monitor, wm: *WindowManager) void {
-    wm.invalidate_bars();
+    wm.invalidateBars();
     const selected_client = monitor.sel orelse return;
 
     if (selected_client.is_floating or monitor.lt[monitor.sel_lt] == null) {
@@ -228,7 +228,7 @@ pub fn restack(monitor: *Monitor, wm: *WindowManager) void {
 
         var current = monitor.stack;
         while (current) |client| {
-            if (!client.is_floating and client_mod.is_visible(client)) {
+            if (!client.is_floating and client_mod.isVisible(client)) {
                 _ = xlib.c.XConfigureWindow(wm.display.handle, client.window, xlib.c.CWSibling | xlib.c.CWStackMode, &window_changes);
                 window_changes.sibling = client.window;
             }
@@ -253,27 +253,27 @@ pub fn arrange(monitor: *Monitor, wm: *WindowManager) void {
 }
 
 pub fn showhide(monitor: *Monitor, wm: *WindowManager) void {
-    showhide_client(monitor.stack, wm);
+    showhideClient(monitor.stack, wm);
 }
 
-pub fn showhide_client(client: ?*Client, wm: *WindowManager) void {
+pub fn showhideClient(client: ?*Client, wm: *WindowManager) void {
     const target = client orelse return;
-    if (client_mod.is_visible(target)) {
+    if (client_mod.isVisible(target)) {
         _ = xlib.XMoveWindow(wm.display.handle, target.window, target.x, target.y);
         const monitor = target.monitor orelse return;
         if ((monitor.lt[monitor.sel_lt] == null or target.is_floating) and !target.is_fullscreen) {
             tiling.resize(target, target.x, target.y, target.width, target.height, false);
         }
-        showhide_client(target.stack_next, wm);
+        showhideClient(target.stack_next, wm);
     } else {
-        showhide_client(target.stack_next, wm);
+        showhideClient(target.stack_next, wm);
         const client_width = target.width + 2 * target.border_width;
         _ = xlib.XMoveWindow(wm.display.handle, target.window, -2 * client_width, target.y);
     }
 }
 
 pub fn grabbuttons(client: *Client, focused: bool, wm: *WindowManager) void {
-    wm.update_numlock_mask();
+    wm.updateNumlockMask();
     const modifiers = [_]c_uint{ 0, xlib.LockMask, wm.numlock_mask, wm.numlock_mask | xlib.LockMask };
 
     _ = xlib.XUngrabButton(wm.display.handle, xlib.AnyButton, xlib.AnyModifier, client.window);
@@ -311,12 +311,12 @@ pub fn grabbuttons(client: *Client, focused: bool, wm: *WindowManager) void {
     }
 }
 
-pub fn set_client_state(client: *Client, state: c_long, wm: *WindowManager) void {
+pub fn setClientState(client: *Client, state: c_long, wm: *WindowManager) void {
     var data: [2]c_long = .{ state, xlib.None };
     _ = xlib.c.XChangeProperty(wm.display.handle, client.window, wm.atoms.wm_state, xlib.XA_ATOM, 32, xlib.PropModeReplace, @ptrCast(&data), 2);
 }
 
-pub fn set_fullscreen(client: *Client, fullscreen: bool, wm: *WindowManager) void {
+pub fn setFullscreen(client: *Client, fullscreen: bool, wm: *WindowManager) void {
     const monitor = client.monitor orelse return;
 
     if (fullscreen and !client.is_fullscreen) {
@@ -338,7 +338,7 @@ pub fn set_fullscreen(client: *Client, fullscreen: bool, wm: *WindowManager) voi
         client.is_floating = true;
 
         _ = xlib.XSetWindowBorderWidth(wm.display.handle, client.window, 0);
-        tiling.resize_client(client, monitor.mon_x, monitor.mon_y, monitor.mon_w, monitor.mon_h);
+        tiling.resizeClient(client, monitor.mon_x, monitor.mon_y, monitor.mon_w, monitor.mon_h);
         _ = xlib.XRaiseWindow(wm.display.handle, client.window);
 
         std.debug.print("fullscreen enabled: window=0x{x}\n", .{client.window});
@@ -363,17 +363,17 @@ pub fn set_fullscreen(client: *Client, fullscreen: bool, wm: *WindowManager) voi
         client.width = client.old_width;
         client.height = client.old_height;
 
-        tiling.resize_client(client, client.x, client.y, client.width, client.height);
+        tiling.resizeClient(client, client.x, client.y, client.width, client.height);
         arrange(monitor, wm);
 
         std.debug.print("fullscreen disabled: window=0x{x}\n", .{client.window});
     }
 }
 
-pub fn focus_top_client(monitor: *Monitor, wm: *WindowManager) void {
+pub fn focusTopClient(monitor: *Monitor, wm: *WindowManager) void {
     var visible_client = monitor.stack;
     while (visible_client) |client| {
-        if (client_mod.is_visible(client)) {
+        if (client_mod.isVisible(client)) {
             focus(client, wm);
             return;
         }
@@ -383,8 +383,8 @@ pub fn focus_top_client(monitor: *Monitor, wm: *WindowManager) void {
     _ = xlib.XSetInputFocus(wm.display.handle, wm.display.root, xlib.RevertToPointerRoot, xlib.CurrentTime);
 }
 
-pub fn tick_animations(wm: *WindowManager) void {
-    if (!wm.scroll_animation.is_active()) return;
+pub fn tickAnimations(wm: *WindowManager) void {
+    if (!wm.scroll_animation.isActive()) return;
 
     const monitor = wm.selected_monitor orelse return;
     if (wm.scroll_animation.update()) |new_offset| {
@@ -393,21 +393,21 @@ pub fn tick_animations(wm: *WindowManager) void {
     }
 }
 
-pub fn is_scrolling_layout(monitor: *Monitor) bool {
+pub fn isScrollingLayout(monitor: *Monitor) bool {
     if (monitor.lt[monitor.sel_lt]) |layout| {
         return layout.arrange_fn == scrolling.layout.arrange_fn;
     }
     return false;
 }
 
-pub fn scroll_layout(direction: i32, wm: *WindowManager) void {
+pub fn scrollLayout(direction: i32, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
-    if (!is_scrolling_layout(monitor)) return;
+    if (!isScrollingLayout(monitor)) return;
 
-    const scroll_step = scrolling.get_scroll_step(monitor);
-    const max_scroll = scrolling.get_max_scroll(monitor);
+    const scroll_step = scrolling.getScrollStep(monitor);
+    const max_scroll = scrolling.getMaxScroll(monitor);
 
-    const current = if (wm.scroll_animation.is_active())
+    const current = if (wm.scroll_animation.isActive())
         wm.scroll_animation.target()
     else
         monitor.scroll_offset;
@@ -418,11 +418,11 @@ pub fn scroll_layout(direction: i32, wm: *WindowManager) void {
     wm.scroll_animation.start(monitor.scroll_offset, target, wm.animation_config);
 }
 
-pub fn scroll_to_window(client: *Client, animate: bool, wm: *WindowManager) void {
+pub fn scrollToWindow(client: *Client, animate: bool, wm: *WindowManager) void {
     const monitor = client.monitor orelse return;
-    if (!is_scrolling_layout(monitor)) return;
+    if (!isScrollingLayout(monitor)) return;
 
-    const target = scrolling.get_target_scroll_for_window(monitor, client);
+    const target = scrolling.getTargetScrollForWindow(monitor, client);
 
     if (animate) {
         wm.scroll_animation.start(monitor.scroll_offset, target, wm.animation_config);
@@ -432,7 +432,7 @@ pub fn scroll_to_window(client: *Client, animate: bool, wm: *WindowManager) void
     }
 }
 
-pub fn apply_rules(client: *Client, wm: *WindowManager) void {
+pub fn applyRules(client: *Client, wm: *WindowManager) void {
     var class_hint: xlib.XClassHint = .{ .res_name = null, .res_class = null };
     _ = xlib.XGetClassHint(wm.display.handle, client.window, &class_hint);
 
@@ -490,7 +490,7 @@ pub fn apply_rules(client: *Client, wm: *WindowManager) void {
     }
 }
 
-pub fn update_size_hints(client: *Client, wm: *WindowManager) void {
+pub fn updateSizeHints(client: *Client, wm: *WindowManager) void {
     var size_hints: xlib.XSizeHints = undefined;
     var msize: c_long = 0;
 
@@ -548,7 +548,7 @@ pub fn update_size_hints(client: *Client, wm: *WindowManager) void {
     client.hints_valid = true;
 }
 
-pub fn update_wm_hints(client: *Client, wm: *WindowManager) void {
+pub fn updateWmHints(client: *Client, wm: *WindowManager) void {
     const wmh = xlib.XGetWMHints(wm.display.handle, client.window);
     if (wmh) |hints| {
         defer _ = xlib.XFree(@ptrCast(hints));
@@ -568,28 +568,28 @@ pub fn update_wm_hints(client: *Client, wm: *WindowManager) void {
     }
 }
 
-pub fn update_window_type(client: *Client, wm: *WindowManager) void {
-    const state = get_atom_prop(client, wm.atoms.net_wm_state, wm);
-    const window_type = get_atom_prop(client, wm.atoms.net_wm_window_type, wm);
+pub fn updateWindowType(client: *Client, wm: *WindowManager) void {
+    const state = getAtomProp(client, wm.atoms.net_wm_state, wm);
+    const window_type = getAtomProp(client, wm.atoms.net_wm_window_type, wm);
 
     if (state == wm.atoms.net_wm_state_fullscreen) {
-        set_fullscreen(client, true, wm);
+        setFullscreen(client, true, wm);
     }
     if (window_type == wm.atoms.net_wm_window_type_dialog) {
         client.is_floating = true;
     }
 }
 
-pub fn update_title(client: *Client, wm: *WindowManager) void {
-    if (!get_text_prop(client.window, wm.atoms.net_wm_name, &client.name, wm)) {
-        _ = get_text_prop(client.window, xlib.XA_WM_NAME, &client.name, wm);
+pub fn updateTitle(client: *Client, wm: *WindowManager) void {
+    if (!getTextProp(client.window, wm.atoms.net_wm_name, &client.name, wm)) {
+        _ = getTextProp(client.window, xlib.XA_WM_NAME, &client.name, wm);
     }
     if (client.name[0] == 0) {
         @memcpy(client.name[0..6], "broken");
     }
 }
 
-pub fn get_atom_prop(client: *Client, prop: xlib.Atom, wm: *WindowManager) xlib.Atom {
+pub fn getAtomProp(client: *Client, prop: xlib.Atom, wm: *WindowManager) xlib.Atom {
     var actual_type: xlib.Atom = undefined;
     var actual_format: c_int = undefined;
     var num_items: c_ulong = undefined;
@@ -604,7 +604,7 @@ pub fn get_atom_prop(client: *Client, prop: xlib.Atom, wm: *WindowManager) xlib.
     return 0;
 }
 
-pub fn get_text_prop(window: xlib.Window, atom: xlib.Atom, text: *[256]u8, wm: *WindowManager) bool {
+pub fn getTextProp(window: xlib.Window, atom: xlib.Atom, text: *[256]u8, wm: *WindowManager) bool {
     var name: xlib.XTextProperty = undefined;
     text[0] = 0;
 
@@ -632,7 +632,7 @@ pub fn get_text_prop(window: xlib.Window, atom: xlib.Atom, text: *[256]u8, wm: *
     return true;
 }
 
-pub fn update_client_list(wm: *WindowManager) void {
+pub fn updateClientList(wm: *WindowManager) void {
     _ = xlib.XDeleteProperty(wm.display.handle, wm.display.root, wm.atoms.net_client_list);
 
     var current_monitor = wm.monitors;
@@ -646,7 +646,7 @@ pub fn update_client_list(wm: *WindowManager) void {
     }
 }
 
-pub fn send_event(client: *Client, protocol: xlib.Atom, wm: *WindowManager) bool {
+pub fn sendEvent(client: *Client, protocol: xlib.Atom, wm: *WindowManager) bool {
     var protocols: [*c]xlib.Atom = undefined;
     var num_protocols: c_int = 0;
     var exists = false;
@@ -675,7 +675,7 @@ pub fn send_event(client: *Client, protocol: xlib.Atom, wm: *WindowManager) bool
     return exists;
 }
 
-pub fn set_urgent(client: *Client, urgent: bool, wm: *WindowManager) void {
+pub fn setUrgent(client: *Client, urgent: bool, wm: *WindowManager) void {
     client.is_urgent = urgent;
     const wmh = xlib.XGetWMHints(wm.display.handle, client.window);
     if (wmh) |hints| {
@@ -689,7 +689,7 @@ pub fn set_urgent(client: *Client, urgent: bool, wm: *WindowManager) void {
     }
 }
 
-pub fn has_clients_on_tag(monitor: *monitor_mod.Monitor, tag_mask: u32) bool {
+pub fn hasClientsOnTag(monitor: *monitor_mod.Monitor, tag_mask: u32) bool {
     var client = monitor.clients;
     while (client) |c| {
         if ((c.tags & tag_mask) != 0) {
@@ -729,8 +729,8 @@ pub fn view(tag_mask: u32, wm: *WindowManager) void {
     monitor.mfact = monitor.pertag.mfacts[monitor.pertag.curtag];
     monitor.sel_lt = monitor.pertag.sellts[monitor.pertag.curtag];
 
-    focus_top_client(monitor, wm);
+    focusTopClient(monitor, wm);
     arrange(monitor, wm);
-    wm.invalidate_bars();
+    wm.invalidateBars();
     std.debug.print("view: tag_mask={d}\n", .{monitor.tagset[monitor.sel_tags]});
 }
