@@ -5,10 +5,6 @@ const Keybind = config_mod.Keybind;
 const Action = config_mod.Action;
 const Rule = config_mod.Rule;
 const Block = config_mod.Block;
-const Block_Type = config_mod.Block_Type;
-const Mouse_Button = config_mod.Mouse_Button;
-const Click_Target = config_mod.Click_Target;
-const Mouse_Action = config_mod.Mouse_Action;
 const ColorScheme = config_mod.ColorScheme;
 
 const c = @cImport({
@@ -25,7 +21,7 @@ pub fn init(cfg: *Config) bool {
     L = c.luaL_newstate();
     if (L == null) return false;
     c.luaL_openlibs(L);
-    register_api();
+    registerApi();
     return true;
 }
 
@@ -37,7 +33,7 @@ pub fn deinit() void {
     config = null;
 }
 
-pub fn load_file(path: []const u8) bool {
+pub fn loadFile(path: []const u8) bool {
     const state = L orelse return false;
     var path_buf: [512]u8 = undefined;
     if (path.len >= path_buf.len) return false;
@@ -75,224 +71,224 @@ pub fn load_file(path: []const u8) bool {
     return true;
 }
 
-pub fn load_config() bool {
+pub fn loadConfig() bool {
     const home = std.posix.getenv("HOME") orelse return false;
     var path_buf: [512]u8 = undefined;
     const path = std.fmt.bufPrint(&path_buf, "{s}/.config/oxwm/config.lua", .{home}) catch return false;
-    return load_file(path);
+    return loadFile(path);
 }
 
-fn register_api() void {
+fn registerApi() void {
     const state = L orelse return;
 
     c.lua_createtable(state, 0, 16);
 
-    register_spawn_functions(state);
-    register_key_module(state);
-    register_gaps_module(state);
-    register_border_module(state);
-    register_client_module(state);
-    register_layout_module(state);
-    register_tag_module(state);
-    register_monitor_module(state);
-    register_rule_module(state);
-    register_bar_module(state);
-    register_misc_functions(state);
+    registerSpawnFunctions(state);
+    registerKeyModule(state);
+    registerGapsModule(state);
+    registerBorderModule(state);
+    registerClientModule(state);
+    registerLayoutModule(state);
+    registerTagModule(state);
+    registerMonitorModule(state);
+    registerRuleModule(state);
+    registerBarModule(state);
+    registerMiscFunctions(state);
 
     c.lua_setglobal(state, "oxwm");
 }
 
-fn register_spawn_functions(state: *c.lua_State) void {
-    c.lua_pushcfunction(state, lua_spawn);
+fn registerSpawnFunctions(state: *c.lua_State) void {
+    c.lua_pushcfunction(state, luaSpawn);
     c.lua_setfield(state, -2, "spawn");
 
-    c.lua_pushcfunction(state, lua_spawn_terminal);
+    c.lua_pushcfunction(state, luaSpawnTerminal);
     c.lua_setfield(state, -2, "spawn_terminal");
 }
 
-fn register_key_module(state: *c.lua_State) void {
+fn registerKeyModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 2);
 
-    c.lua_pushcfunction(state, lua_key_bind);
+    c.lua_pushcfunction(state, luaKeyBind);
     c.lua_setfield(state, -2, "bind");
 
-    c.lua_pushcfunction(state, lua_key_chord);
+    c.lua_pushcfunction(state, luaKeyChord);
     c.lua_setfield(state, -2, "chord");
 
     c.lua_setfield(state, -2, "key");
 }
 
-fn register_gaps_module(state: *c.lua_State) void {
+fn registerGapsModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 6);
 
-    c.lua_pushcfunction(state, lua_gaps_set_enabled);
+    c.lua_pushcfunction(state, luaGapsSetEnabled);
     c.lua_setfield(state, -2, "set_enabled");
 
-    c.lua_pushcfunction(state, lua_gaps_enable);
+    c.lua_pushcfunction(state, luaGapsEnable);
     c.lua_setfield(state, -2, "enable");
 
-    c.lua_pushcfunction(state, lua_gaps_disable);
+    c.lua_pushcfunction(state, luaGapsDisable);
     c.lua_setfield(state, -2, "disable");
 
-    c.lua_pushcfunction(state, lua_gaps_set_inner);
+    c.lua_pushcfunction(state, luaGapsSetInner);
     c.lua_setfield(state, -2, "set_inner");
 
-    c.lua_pushcfunction(state, lua_gaps_set_outer);
+    c.lua_pushcfunction(state, luaGapsSetOuter);
     c.lua_setfield(state, -2, "set_outer");
 
-    c.lua_pushcfunction(state, lua_gaps_set_smart);
+    c.lua_pushcfunction(state, luaGapsSetSmart);
     c.lua_setfield(state, -2, "set_smart");
 
     c.lua_setfield(state, -2, "gaps");
 }
 
-fn register_border_module(state: *c.lua_State) void {
+fn registerBorderModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 3);
 
-    c.lua_pushcfunction(state, lua_border_set_width);
+    c.lua_pushcfunction(state, luaBorderSetWidth);
     c.lua_setfield(state, -2, "set_width");
 
-    c.lua_pushcfunction(state, lua_border_set_focused_color);
+    c.lua_pushcfunction(state, luaBorderSetFocusedColor);
     c.lua_setfield(state, -2, "set_focused_color");
 
-    c.lua_pushcfunction(state, lua_border_set_unfocused_color);
+    c.lua_pushcfunction(state, luaBorderSetUnfocusedColor);
     c.lua_setfield(state, -2, "set_unfocused_color");
 
     c.lua_setfield(state, -2, "border");
 }
 
-fn register_client_module(state: *c.lua_State) void {
+fn registerClientModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 5);
 
-    c.lua_pushcfunction(state, lua_client_kill);
+    c.lua_pushcfunction(state, luaClientKill);
     c.lua_setfield(state, -2, "kill");
 
-    c.lua_pushcfunction(state, lua_client_toggle_fullscreen);
+    c.lua_pushcfunction(state, luaClientToggleFullscreen);
     c.lua_setfield(state, -2, "toggle_fullscreen");
 
-    c.lua_pushcfunction(state, lua_client_toggle_floating);
+    c.lua_pushcfunction(state, luaClientToggleFloating);
     c.lua_setfield(state, -2, "toggle_floating");
 
-    c.lua_pushcfunction(state, lua_client_focus_stack);
+    c.lua_pushcfunction(state, luaClientFocusStack);
     c.lua_setfield(state, -2, "focus_stack");
 
-    c.lua_pushcfunction(state, lua_client_move_stack);
+    c.lua_pushcfunction(state, luaClientMoveStack);
     c.lua_setfield(state, -2, "move_stack");
 
     c.lua_setfield(state, -2, "client");
 }
 
-fn register_layout_module(state: *c.lua_State) void {
+fn registerLayoutModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 4);
 
-    c.lua_pushcfunction(state, lua_layout_cycle);
+    c.lua_pushcfunction(state, luaLayoutCycle);
     c.lua_setfield(state, -2, "cycle");
 
-    c.lua_pushcfunction(state, lua_layout_set);
+    c.lua_pushcfunction(state, luaLayoutSet);
     c.lua_setfield(state, -2, "set");
 
-    c.lua_pushcfunction(state, lua_layout_scroll_left);
+    c.lua_pushcfunction(state, luaLayoutScrollLeft);
     c.lua_setfield(state, -2, "scroll_left");
 
-    c.lua_pushcfunction(state, lua_layout_scroll_right);
+    c.lua_pushcfunction(state, luaLayoutScrollRight);
     c.lua_setfield(state, -2, "scroll_right");
 
     c.lua_setfield(state, -2, "layout");
 }
 
-fn register_tag_module(state: *c.lua_State) void {
+fn registerTagModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 10);
 
-    c.lua_pushcfunction(state, lua_tag_view);
+    c.lua_pushcfunction(state, luaTagView);
     c.lua_setfield(state, -2, "view");
 
-    c.lua_pushcfunction(state, lua_tag_view_next);
+    c.lua_pushcfunction(state, luaTagViewNext);
     c.lua_setfield(state, -2, "view_next");
 
-    c.lua_pushcfunction(state, lua_tag_view_previous);
+    c.lua_pushcfunction(state, luaTagViewPrevious);
     c.lua_setfield(state, -2, "view_previous");
 
-    c.lua_pushcfunction(state, lua_tag_view_next_nonempty);
+    c.lua_pushcfunction(state, luaTagViewNextNonempty);
     c.lua_setfield(state, -2, "view_next_nonempty");
 
-    c.lua_pushcfunction(state, lua_tag_view_previous_nonempty);
+    c.lua_pushcfunction(state, luaTagViewPreviousNonempty);
     c.lua_setfield(state, -2, "view_previous_nonempty");
 
-    c.lua_pushcfunction(state, lua_tag_toggleview);
+    c.lua_pushcfunction(state, luaTagToggleview);
     c.lua_setfield(state, -2, "toggleview");
 
-    c.lua_pushcfunction(state, lua_tag_move_to);
+    c.lua_pushcfunction(state, luaTagMoveTo);
     c.lua_setfield(state, -2, "move_to");
 
-    c.lua_pushcfunction(state, lua_tag_toggletag);
+    c.lua_pushcfunction(state, luaTagToggletag);
     c.lua_setfield(state, -2, "toggletag");
 
-    c.lua_pushcfunction(state, lua_tag_set_back_and_forth);
+    c.lua_pushcfunction(state, luaTagSetBackAndForth);
     c.lua_setfield(state, -2, "set_back_and_forth");
 
     c.lua_setfield(state, -2, "tag");
 }
 
-fn register_monitor_module(state: *c.lua_State) void {
+fn registerMonitorModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 2);
 
-    c.lua_pushcfunction(state, lua_monitor_focus);
+    c.lua_pushcfunction(state, luaMonitorFocus);
     c.lua_setfield(state, -2, "focus");
 
-    c.lua_pushcfunction(state, lua_monitor_tag);
+    c.lua_pushcfunction(state, luaMonitorTag);
     c.lua_setfield(state, -2, "tag");
 
     c.lua_setfield(state, -2, "monitor");
 }
 
-fn register_rule_module(state: *c.lua_State) void {
+fn registerRuleModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 1);
 
-    c.lua_pushcfunction(state, lua_rule_add);
+    c.lua_pushcfunction(state, luaRuleAdd);
     c.lua_setfield(state, -2, "add");
 
     c.lua_setfield(state, -2, "rule");
 }
 
-fn register_bar_module(state: *c.lua_State) void {
+fn registerBarModule(state: *c.lua_State) void {
     c.lua_createtable(state, 0, 10);
 
-    c.lua_pushcfunction(state, lua_bar_set_font);
+    c.lua_pushcfunction(state, luaBarSetFont);
     c.lua_setfield(state, -2, "set_font");
 
-    c.lua_pushcfunction(state, lua_bar_set_blocks);
+    c.lua_pushcfunction(state, luaBarSetBlocks);
     c.lua_setfield(state, -2, "set_blocks");
 
-    c.lua_pushcfunction(state, lua_bar_set_scheme_normal);
+    c.lua_pushcfunction(state, luaBarSetSchemeNormal);
     c.lua_setfield(state, -2, "set_scheme_normal");
 
-    c.lua_pushcfunction(state, lua_bar_set_scheme_selected);
+    c.lua_pushcfunction(state, luaBarSetSchemeSelected);
     c.lua_setfield(state, -2, "set_scheme_selected");
 
-    c.lua_pushcfunction(state, lua_bar_set_scheme_occupied);
+    c.lua_pushcfunction(state, luaBarSetSchemeOccupied);
     c.lua_setfield(state, -2, "set_scheme_occupied");
 
-    c.lua_pushcfunction(state, lua_bar_set_scheme_urgent);
+    c.lua_pushcfunction(state, luaBarSetSchemeUrgent);
     c.lua_setfield(state, -2, "set_scheme_urgent");
 
-    c.lua_pushcfunction(state, lua_bar_set_hide_vacant_tags);
+    c.lua_pushcfunction(state, luaBarSetHideVacantTags);
     c.lua_setfield(state, -2, "set_hide_vacant_tags");
 
     c.lua_createtable(state, 0, 6);
 
-    c.lua_pushcfunction(state, lua_bar_block_ram);
+    c.lua_pushcfunction(state, luaBarBlockRam);
     c.lua_setfield(state, -2, "ram");
 
-    c.lua_pushcfunction(state, lua_bar_block_datetime);
+    c.lua_pushcfunction(state, luaBarBlockDatetime);
     c.lua_setfield(state, -2, "datetime");
 
-    c.lua_pushcfunction(state, lua_bar_block_shell);
+    c.lua_pushcfunction(state, luaBarBlockShell);
     c.lua_setfield(state, -2, "shell");
 
-    c.lua_pushcfunction(state, lua_bar_block_static);
+    c.lua_pushcfunction(state, luaBarBlockStatic);
     c.lua_setfield(state, -2, "static");
 
-    c.lua_pushcfunction(state, lua_bar_block_battery);
+    c.lua_pushcfunction(state, luaBarBlockBattery);
     c.lua_setfield(state, -2, "battery");
 
     c.lua_setfield(state, -2, "block");
@@ -300,51 +296,51 @@ fn register_bar_module(state: *c.lua_State) void {
     c.lua_setfield(state, -2, "bar");
 }
 
-fn register_misc_functions(state: *c.lua_State) void {
-    c.lua_pushcfunction(state, lua_set_terminal);
+fn registerMiscFunctions(state: *c.lua_State) void {
+    c.lua_pushcfunction(state, luaSetTerminal);
     c.lua_setfield(state, -2, "set_terminal");
 
-    c.lua_pushcfunction(state, lua_set_modkey);
+    c.lua_pushcfunction(state, luaSetModkey);
     c.lua_setfield(state, -2, "set_modkey");
 
-    c.lua_pushcfunction(state, lua_set_tags);
+    c.lua_pushcfunction(state, luaSetTags);
     c.lua_setfield(state, -2, "set_tags");
 
-    c.lua_pushcfunction(state, lua_set_layout_symbol);
+    c.lua_pushcfunction(state, luaSetLayoutSymbol);
     c.lua_setfield(state, -2, "set_layout_symbol");
 
-    c.lua_pushcfunction(state, lua_autostart);
+    c.lua_pushcfunction(state, luaAutostart);
     c.lua_setfield(state, -2, "autostart");
 
-    c.lua_pushcfunction(state, lua_auto_tile);
+    c.lua_pushcfunction(state, luaAutoTile);
     c.lua_setfield(state, -2, "auto_tile");
 
-    c.lua_pushcfunction(state, lua_quit);
+    c.lua_pushcfunction(state, luaQuit);
     c.lua_setfield(state, -2, "quit");
 
-    c.lua_pushcfunction(state, lua_restart);
+    c.lua_pushcfunction(state, luaRestart);
     c.lua_setfield(state, -2, "restart");
 
-    c.lua_pushcfunction(state, lua_toggle_gaps);
+    c.lua_pushcfunction(state, luaToggleGaps);
     c.lua_setfield(state, -2, "toggle_gaps");
 
-    c.lua_pushcfunction(state, lua_show_keybinds);
+    c.lua_pushcfunction(state, luaShowKeybinds);
     c.lua_setfield(state, -2, "show_keybinds");
 
-    c.lua_pushcfunction(state, lua_set_master_factor);
+    c.lua_pushcfunction(state, luaSetMasterFactor);
     c.lua_setfield(state, -2, "set_master_factor");
 
-    c.lua_pushcfunction(state, lua_inc_num_master);
+    c.lua_pushcfunction(state, luaIncNumMaster);
     c.lua_setfield(state, -2, "inc_num_master");
 }
 
-fn create_action_table(state: *c.lua_State, action_name: [*:0]const u8) void {
+fn createActionTable(state: *c.lua_State, action_name: [*:0]const u8) void {
     c.lua_createtable(state, 0, 2);
     _ = c.lua_pushstring(state, action_name);
     c.lua_setfield(state, -2, "__action");
 }
 
-fn create_action_table_with_int(state: *c.lua_State, action_name: [*:0]const u8, arg: i32) void {
+fn createActionTableWithInt(state: *c.lua_State, action_name: [*:0]const u8, arg: i32) void {
     c.lua_createtable(state, 0, 2);
     _ = c.lua_pushstring(state, action_name);
     c.lua_setfield(state, -2, "__action");
@@ -352,7 +348,7 @@ fn create_action_table_with_int(state: *c.lua_State, action_name: [*:0]const u8,
     c.lua_setfield(state, -2, "__arg");
 }
 
-fn create_action_table_with_string(state: *c.lua_State, action_name: [*:0]const u8) void {
+fn createActionTableWithString(state: *c.lua_State, action_name: [*:0]const u8) void {
     c.lua_createtable(state, 0, 2);
     _ = c.lua_pushstring(state, action_name);
     c.lua_setfield(state, -2, "__action");
@@ -360,36 +356,36 @@ fn create_action_table_with_string(state: *c.lua_State, action_name: [*:0]const 
     c.lua_setfield(state, -2, "__arg");
 }
 
-fn lua_spawn(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaSpawn(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table_with_string(s, "Spawn");
+    createActionTableWithString(s, "Spawn");
     return 1;
 }
 
-fn lua_spawn_terminal(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaSpawnTerminal(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "SpawnTerminal");
+    createActionTable(s, "SpawnTerminal");
     return 1;
 }
 
-fn lua_key_bind(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaKeyBind(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const cfg = config orelse return 0;
 
-    const mod_mask = parse_modifiers(s, 1);
-    const key_str = get_string_arg(s, 2) orelse return 0;
-    const keysym = key_name_to_keysym(key_str) orelse return 0;
+    const mod_mask = parseModifiers(s, 1);
+    const key_str = getStringArg(s, 2) orelse return 0;
+    const keysym = keynameToKeysym(key_str) orelse return 0;
 
     if (c.lua_type(s, 3) != c.LUA_TTABLE) return 0;
 
     _ = c.lua_getfield(s, 3, "__action");
-    const action_str = get_lua_string(s, -1) orelse {
+    const action_str = getLuaString(s, -1) orelse {
         c.lua_settop(s, -2);
         return 0;
     };
     c.lua_settop(s, -2);
 
-    const action = parse_action(action_str) orelse return 0;
+    const action = parseAction(action_str) orelse return 0;
 
     var int_arg: i32 = 0;
     var str_arg: ?[]const u8 = null;
@@ -398,9 +394,9 @@ fn lua_key_bind(state: ?*c.lua_State) callconv(.c) c_int {
     if (c.lua_type(s, -1) == c.LUA_TNUMBER) {
         int_arg = @intCast(c.lua_tointegerx(s, -1, null));
     } else if (c.lua_type(s, -1) == c.LUA_TSTRING) {
-        str_arg = get_lua_string(s, -1);
+        str_arg = getLuaString(s, -1);
     } else if (c.lua_type(s, -1) == c.LUA_TTABLE) {
-        str_arg = extract_spawn_command(s, -1);
+        str_arg = extractSpawnCommand(s, -1);
     }
     c.lua_settop(s, -2);
 
@@ -412,12 +408,12 @@ fn lua_key_bind(state: ?*c.lua_State) callconv(.c) c_int {
     keybind.keys[0] = .{ .mod_mask = mod_mask, .keysym = keysym };
     keybind.key_count = 1;
 
-    cfg.add_keybind(keybind) catch return 0;
+    cfg.addKeybind(keybind) catch return 0;
 
     return 0;
 }
 
-fn lua_key_chord(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaKeyChord(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const cfg = config orelse return 0;
 
@@ -443,17 +439,17 @@ fn lua_key_chord(state: ?*c.lua_State) callconv(.c) c_int {
         }
 
         _ = c.lua_rawgeti(s, -1, 1);
-        const mod_mask = parse_modifiers_at_top(s);
+        const mod_mask = parseModifiersAtTop(s);
         c.lua_settop(s, -2);
 
         _ = c.lua_rawgeti(s, -1, 2);
-        const key_str = get_lua_string(s, -1) orelse {
+        const key_str = getLuaString(s, -1) orelse {
             c.lua_settop(s, -3);
             return 0;
         };
         c.lua_settop(s, -2);
 
-        const keysym = key_name_to_keysym(key_str) orelse {
+        const keysym = keynameToKeysym(key_str) orelse {
             c.lua_settop(s, -2);
             return 0;
         };
@@ -465,51 +461,51 @@ fn lua_key_chord(state: ?*c.lua_State) callconv(.c) c_int {
     }
 
     _ = c.lua_getfield(s, 2, "__action");
-    const action_str = get_lua_string(s, -1) orelse {
+    const action_str = getLuaString(s, -1) orelse {
         c.lua_settop(s, -2);
         return 0;
     };
     c.lua_settop(s, -2);
 
-    keybind.action = parse_action(action_str) orelse return 0;
+    keybind.action = parseAction(action_str) orelse return 0;
 
     _ = c.lua_getfield(s, 2, "__arg");
     if (c.lua_type(s, -1) == c.LUA_TNUMBER) {
         keybind.int_arg = @intCast(c.lua_tointegerx(s, -1, null));
     } else if (c.lua_type(s, -1) == c.LUA_TSTRING) {
-        keybind.str_arg = get_lua_string(s, -1);
+        keybind.str_arg = getLuaString(s, -1);
     } else if (c.lua_type(s, -1) == c.LUA_TTABLE) {
-        keybind.str_arg = extract_spawn_command(s, -1);
+        keybind.str_arg = extractSpawnCommand(s, -1);
     }
 
     c.lua_settop(s, -2);
-    cfg.add_keybind(keybind) catch return 0;
+    cfg.addKeybind(keybind) catch return 0;
 
     return 0;
 }
 
-fn lua_gaps_set_enabled(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaGapsSetEnabled(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     cfg.gaps_enabled = c.lua_toboolean(s, 1) != 0;
     return 0;
 }
 
-fn lua_gaps_enable(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaGapsEnable(state: ?*c.lua_State) callconv(.c) c_int {
     _ = state;
     const cfg = config orelse return 0;
     cfg.gaps_enabled = true;
     return 0;
 }
 
-fn lua_gaps_disable(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaGapsDisable(state: ?*c.lua_State) callconv(.c) c_int {
     _ = state;
     const cfg = config orelse return 0;
     cfg.gaps_enabled = false;
     return 0;
 }
 
-fn lua_gaps_set_inner(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaGapsSetInner(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     cfg.gap_inner_h = @intCast(c.lua_tointegerx(s, 1, null));
@@ -517,7 +513,7 @@ fn lua_gaps_set_inner(state: ?*c.lua_State) callconv(.c) c_int {
     return 0;
 }
 
-fn lua_gaps_set_outer(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaGapsSetOuter(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     cfg.gap_outer_h = @intCast(c.lua_tointegerx(s, 1, null));
@@ -525,164 +521,164 @@ fn lua_gaps_set_outer(state: ?*c.lua_State) callconv(.c) c_int {
     return 0;
 }
 
-fn lua_gaps_set_smart(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaGapsSetSmart(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     cfg.smartgaps_enabled = c.lua_toboolean(s, 1) != 0;
     return 0;
 }
 
-fn lua_border_set_width(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBorderSetWidth(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     cfg.border_width = @intCast(c.lua_tointegerx(s, 1, null));
     return 0;
 }
 
-fn lua_border_set_focused_color(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBorderSetFocusedColor(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    cfg.border_focused = parse_color(s, 1);
+    cfg.border_focused = parseColor(s, 1);
     return 0;
 }
 
-fn lua_border_set_unfocused_color(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBorderSetUnfocusedColor(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    cfg.border_unfocused = parse_color(s, 1);
+    cfg.border_unfocused = parseColor(s, 1);
     return 0;
 }
 
-fn lua_client_kill(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaClientKill(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "KillClient");
+    createActionTable(s, "KillClient");
     return 1;
 }
 
-fn lua_client_toggle_fullscreen(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaClientToggleFullscreen(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "ToggleFullScreen");
+    createActionTable(s, "ToggleFullScreen");
     return 1;
 }
 
-fn lua_client_toggle_floating(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaClientToggleFloating(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "ToggleFloating");
+    createActionTable(s, "ToggleFloating");
     return 1;
 }
 
-fn lua_client_focus_stack(state: ?*c.lua_State) callconv(.c) c_int {
-    const s = state orelse return 0;
-    const dir: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "FocusStack", dir);
-    return 1;
-}
-
-fn lua_client_move_stack(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaClientFocusStack(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const dir: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "MoveStack", dir);
+    createActionTableWithInt(s, "FocusStack", dir);
     return 1;
 }
 
-fn lua_layout_cycle(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaClientMoveStack(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "CycleLayout");
+    const dir: i32 = @intCast(c.lua_tointegerx(s, 1, null));
+    createActionTableWithInt(s, "MoveStack", dir);
     return 1;
 }
 
-fn lua_layout_set(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaLayoutCycle(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table_with_string(s, "ChangeLayout");
+    createActionTable(s, "CycleLayout");
     return 1;
 }
 
-fn lua_layout_scroll_left(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaLayoutSet(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "ScrollLeft");
+    createActionTableWithString(s, "ChangeLayout");
     return 1;
 }
 
-fn lua_layout_scroll_right(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaLayoutScrollLeft(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "ScrollRight");
+    createActionTable(s, "ScrollLeft");
     return 1;
 }
 
-fn lua_tag_view(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaLayoutScrollRight(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    const idx: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "ViewTag", idx);
+    createActionTable(s, "ScrollRight");
     return 1;
 }
 
-fn lua_tag_view_next(state: ?*c.lua_State) callconv(.c) c_int {
-    const s = state orelse return 0;
-    create_action_table(s, "ViewNextTag");
-    return 1;
-}
-
-fn lua_tag_view_previous(state: ?*c.lua_State) callconv(.c) c_int {
-    const s = state orelse return 0;
-    create_action_table(s, "ViewPreviousTag");
-    return 1;
-}
-
-fn lua_tag_view_next_nonempty(state: ?*c.lua_State) callconv(.c) c_int {
-    const s = state orelse return 0;
-    create_action_table(s, "ViewNextNonEmptyTag");
-    return 1;
-}
-
-fn lua_tag_view_previous_nonempty(state: ?*c.lua_State) callconv(.c) c_int {
-    const s = state orelse return 0;
-    create_action_table(s, "ViewPreviousNonEmptyTag");
-    return 1;
-}
-
-fn lua_tag_toggleview(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaTagView(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const idx: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "ToggleView", idx);
+    createActionTableWithInt(s, "ViewTag", idx);
     return 1;
 }
 
-fn lua_tag_move_to(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaTagViewNext(state: ?*c.lua_State) callconv(.c) c_int {
+    const s = state orelse return 0;
+    createActionTable(s, "ViewNextTag");
+    return 1;
+}
+
+fn luaTagViewPrevious(state: ?*c.lua_State) callconv(.c) c_int {
+    const s = state orelse return 0;
+    createActionTable(s, "ViewPreviousTag");
+    return 1;
+}
+
+fn luaTagViewNextNonempty(state: ?*c.lua_State) callconv(.c) c_int {
+    const s = state orelse return 0;
+    createActionTable(s, "ViewNextNonEmptyTag");
+    return 1;
+}
+
+fn luaTagViewPreviousNonempty(state: ?*c.lua_State) callconv(.c) c_int {
+    const s = state orelse return 0;
+    createActionTable(s, "ViewPreviousNonEmptyTag");
+    return 1;
+}
+
+fn luaTagToggleview(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const idx: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "MoveToTag", idx);
+    createActionTableWithInt(s, "ToggleView", idx);
     return 1;
 }
 
-fn lua_tag_toggletag(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaTagMoveTo(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const idx: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "ToggleTag", idx);
+    createActionTableWithInt(s, "MoveToTag", idx);
     return 1;
 }
 
-fn lua_tag_set_back_and_forth(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaTagToggletag(state: ?*c.lua_State) callconv(.c) c_int {
+    const s = state orelse return 0;
+    const idx: i32 = @intCast(c.lua_tointegerx(s, 1, null));
+    createActionTableWithInt(s, "ToggleTag", idx);
+    return 1;
+}
+
+fn luaTagSetBackAndForth(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     cfg.tag_back_and_forth = c.lua_toboolean(s, 1) != 0;
     return 0;
 }
 
-fn lua_monitor_focus(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaMonitorFocus(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const dir: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "FocusMonitor", dir);
+    createActionTableWithInt(s, "FocusMonitor", dir);
     return 1;
 }
 
-fn lua_monitor_tag(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaMonitorTag(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const dir: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "TagMonitor", dir);
+    createActionTableWithInt(s, "TagMonitor", dir);
     return 1;
 }
 
-fn lua_rule_add(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaRuleAdd(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
 
@@ -700,19 +696,19 @@ fn lua_rule_add(state: ?*c.lua_State) callconv(.c) c_int {
 
     _ = c.lua_getfield(s, 1, "class");
     if (c.lua_type(s, -1) == c.LUA_TSTRING) {
-        rule.class = get_lua_string(s, -1);
+        rule.class = getLuaString(s, -1);
     }
     c.lua_settop(s, -2);
 
     _ = c.lua_getfield(s, 1, "instance");
     if (c.lua_type(s, -1) == c.LUA_TSTRING) {
-        rule.instance = get_lua_string(s, -1);
+        rule.instance = getLuaString(s, -1);
     }
     c.lua_settop(s, -2);
 
     _ = c.lua_getfield(s, 1, "title");
     if (c.lua_type(s, -1) == c.LUA_TSTRING) {
-        rule.title = get_lua_string(s, -1);
+        rule.title = getLuaString(s, -1);
     }
     c.lua_settop(s, -2);
 
@@ -743,20 +739,20 @@ fn lua_rule_add(state: ?*c.lua_State) callconv(.c) c_int {
     }
     c.lua_settop(s, -2);
 
-    cfg.add_rule(rule) catch return 0;
+    cfg.addRule(rule) catch return 0;
     return 0;
 }
 
-fn lua_bar_set_font(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarSetFont(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    if (dupe_lua_string(s, 1)) |font| {
+    if (dupeLuaString(s, 1)) |font| {
         cfg.font = font;
     }
     return 0;
 }
 
-fn lua_bar_set_blocks(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarSetBlocks(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
 
@@ -772,8 +768,8 @@ fn lua_bar_set_blocks(state: ?*c.lua_State) callconv(.c) c_int {
             continue;
         }
 
-        if (parse_block_config(s, -1)) |block| {
-            cfg.add_block(block) catch {};
+        if (parseBlockConfig(s, -1)) |block| {
+            cfg.addBlock(block) catch {};
         }
 
         c.lua_settop(s, -2);
@@ -782,16 +778,16 @@ fn lua_bar_set_blocks(state: ?*c.lua_State) callconv(.c) c_int {
     return 0;
 }
 
-fn parse_block_config(state: *c.lua_State, idx: c_int) ?Block {
+fn parseBlockConfig(state: *c.lua_State, idx: c_int) ?Block {
     _ = c.lua_getfield(state, idx, "__block_type");
-    const block_type_str = get_lua_string(state, -1) orelse {
+    const block_type_str = getLuaString(state, -1) orelse {
         c.lua_settop(state, -2);
         return null;
     };
     c.lua_settop(state, -2);
 
     _ = c.lua_getfield(state, idx, "format");
-    const format = dupe_lua_string(state, -1) orelse "";
+    const format = dupeLuaString(state, -1) orelse "";
     c.lua_settop(state, -2);
 
     _ = c.lua_getfield(state, idx, "interval");
@@ -799,7 +795,7 @@ fn parse_block_config(state: *c.lua_State, idx: c_int) ?Block {
     c.lua_settop(state, -2);
 
     _ = c.lua_getfield(state, idx, "color");
-    const color = parse_color(state, -1);
+    const color = parseColor(state, -1);
     c.lua_settop(state, -2);
 
     _ = c.lua_getfield(state, idx, "underline");
@@ -819,17 +815,17 @@ fn parse_block_config(state: *c.lua_State, idx: c_int) ?Block {
     } else if (std.mem.eql(u8, block_type_str, "DateTime")) {
         block.block_type = .datetime;
         _ = c.lua_getfield(state, idx, "__arg");
-        block.datetime_format = dupe_lua_string(state, -1);
+        block.datetime_format = dupeLuaString(state, -1);
         c.lua_settop(state, -2);
     } else if (std.mem.eql(u8, block_type_str, "Shell")) {
         block.block_type = .shell;
         _ = c.lua_getfield(state, idx, "__arg");
-        block.command = dupe_lua_string(state, -1);
+        block.command = dupeLuaString(state, -1);
         c.lua_settop(state, -2);
     } else if (std.mem.eql(u8, block_type_str, "Static")) {
         block.block_type = .static;
         _ = c.lua_getfield(state, idx, "__arg");
-        if (dupe_lua_string(state, -1)) |text| {
+        if (dupeLuaString(state, -1)) |text| {
             block.format = text;
         }
         c.lua_settop(state, -2);
@@ -838,19 +834,19 @@ fn parse_block_config(state: *c.lua_State, idx: c_int) ?Block {
         _ = c.lua_getfield(state, idx, "__arg");
         if (c.lua_type(state, -1) == c.LUA_TTABLE) {
             _ = c.lua_getfield(state, -1, "charging");
-            block.format_charging = dupe_lua_string(state, -1);
+            block.format_charging = dupeLuaString(state, -1);
             c.lua_settop(state, -2);
 
             _ = c.lua_getfield(state, -1, "discharging");
-            block.format_discharging = dupe_lua_string(state, -1);
+            block.format_discharging = dupeLuaString(state, -1);
             c.lua_settop(state, -2);
 
             _ = c.lua_getfield(state, -1, "full");
-            block.format_full = dupe_lua_string(state, -1);
+            block.format_full = dupeLuaString(state, -1);
             c.lua_settop(state, -2);
 
             _ = c.lua_getfield(state, -1, "battery_name");
-            block.battery_name = dupe_lua_string(state, -1);
+            block.battery_name = dupeLuaString(state, -1);
             c.lua_settop(state, -2);
         }
         c.lua_settop(state, -2);
@@ -861,75 +857,75 @@ fn parse_block_config(state: *c.lua_State, idx: c_int) ?Block {
     return block;
 }
 
-fn lua_bar_set_scheme_normal(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarSetSchemeNormal(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    cfg.scheme_normal = parse_scheme(s);
+    cfg.scheme_normal = parseScheme(s);
     return 0;
 }
 
-fn lua_bar_set_scheme_selected(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarSetSchemeSelected(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    cfg.scheme_selected = parse_scheme(s);
+    cfg.scheme_selected = parseScheme(s);
     return 0;
 }
 
-fn lua_bar_set_scheme_occupied(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarSetSchemeOccupied(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    cfg.scheme_occupied = parse_scheme(s);
+    cfg.scheme_occupied = parseScheme(s);
     return 0;
 }
 
-fn lua_bar_set_scheme_urgent(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarSetSchemeUrgent(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    cfg.scheme_urgent = parse_scheme(s);
+    cfg.scheme_urgent = parseScheme(s);
     return 0;
 }
 
-fn lua_bar_set_hide_vacant_tags(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarSetHideVacantTags(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     cfg.hide_vacant_tags = c.lua_toboolean(s, 1) != 0;
     return 0;
 }
 
-fn lua_bar_block_ram(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarBlockRam(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_block_table(s, "Ram", null);
+    createBlockTable(s, "Ram", null);
     return 1;
 }
 
-fn lua_bar_block_datetime(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarBlockDatetime(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     _ = c.lua_getfield(s, 1, "date_format");
-    const date_format = get_lua_string(s, -1);
+    const date_format = getLuaString(s, -1);
     c.lua_settop(s, -2);
-    create_block_table(s, "DateTime", date_format);
+    createBlockTable(s, "DateTime", date_format);
     return 1;
 }
 
-fn lua_bar_block_shell(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarBlockShell(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     _ = c.lua_getfield(s, 1, "command");
-    const command = get_lua_string(s, -1);
+    const command = getLuaString(s, -1);
     c.lua_settop(s, -2);
-    create_block_table(s, "Shell", command);
+    createBlockTable(s, "Shell", command);
     return 1;
 }
 
-fn lua_bar_block_static(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarBlockStatic(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     _ = c.lua_getfield(s, 1, "text");
-    const text = get_lua_string(s, -1);
+    const text = getLuaString(s, -1);
     c.lua_settop(s, -2);
-    create_block_table(s, "Static", text);
+    createBlockTable(s, "Static", text);
     return 1;
 }
 
-fn lua_bar_block_battery(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaBarBlockBattery(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
 
     c.lua_createtable(s, 0, 6);
@@ -963,7 +959,7 @@ fn lua_bar_block_battery(state: ?*c.lua_State) callconv(.c) c_int {
     return 1;
 }
 
-fn create_block_table(state: *c.lua_State, block_type: [*:0]const u8, arg: ?[]const u8) void {
+fn createBlockTable(state: *c.lua_State, block_type: [*:0]const u8, arg: ?[]const u8) void {
     c.lua_createtable(state, 0, 6);
 
     _ = c.lua_pushstring(state, block_type);
@@ -992,27 +988,27 @@ fn create_block_table(state: *c.lua_State, block_type: [*:0]const u8, arg: ?[]co
     }
 }
 
-fn lua_set_terminal(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaSetTerminal(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    if (dupe_lua_string(s, 1)) |term| {
+    if (dupeLuaString(s, 1)) |term| {
         cfg.terminal = term;
     }
     return 0;
 }
 
-fn lua_set_modkey(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaSetModkey(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    if (get_string_arg(s, 1)) |modkey_str| {
-        cfg.modkey = parse_single_modifier(modkey_str);
-        cfg.add_button(.{
+    if (getStringArg(s, 1)) |modkey_str| {
+        cfg.modkey = parseSingleModifier(modkey_str);
+        cfg.addButton(.{
             .click = .client_win,
             .mod_mask = cfg.modkey,
             .button = 1,
             .action = .move_mouse,
         }) catch {};
-        cfg.add_button(.{
+        cfg.addButton(.{
             .click = .client_win,
             .mod_mask = cfg.modkey,
             .button = 3,
@@ -1022,7 +1018,7 @@ fn lua_set_modkey(state: ?*c.lua_State) callconv(.c) c_int {
     return 0;
 }
 
-fn lua_set_tags(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaSetTags(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
 
@@ -1032,7 +1028,7 @@ fn lua_set_tags(state: ?*c.lua_State) callconv(.c) c_int {
     var i: usize = 0;
     while (i < len and i < 9) : (i += 1) {
         _ = c.lua_rawgeti(s, 1, @intCast(i + 1));
-        if (dupe_lua_string(s, -1)) |tag_str| {
+        if (dupeLuaString(s, -1)) |tag_str| {
             cfg.tags[i] = tag_str;
         }
         c.lua_settop(s, -2);
@@ -1041,27 +1037,27 @@ fn lua_set_tags(state: ?*c.lua_State) callconv(.c) c_int {
     return 0;
 }
 
-fn lua_autostart(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaAutostart(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    if (dupe_lua_string(s, 1)) |cmd| {
-        cfg.add_autostart(cmd) catch return 0;
+    if (dupeLuaString(s, 1)) |cmd| {
+        cfg.addAutostart(cmd) catch return 0;
     }
     return 0;
 }
 
-fn lua_auto_tile(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaAutoTile(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     cfg.auto_tile = c.lua_toboolean(s, 1) != 0;
     return 0;
 }
 
-fn lua_set_layout_symbol(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaSetLayoutSymbol(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
-    const name = get_string_arg(s, 1) orelse return 0;
-    const symbol = dupe_lua_string(s, 2) orelse return 0;
+    const name = getStringArg(s, 1) orelse return 0;
+    const symbol = dupeLuaString(s, 2) orelse return 0;
 
     const layout_map = .{
         .{ "tiling", &cfg.layout_tile_symbol },
@@ -1083,103 +1079,103 @@ fn lua_set_layout_symbol(state: ?*c.lua_State) callconv(.c) c_int {
     return 0;
 }
 
-fn lua_quit(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaQuit(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "Quit");
+    createActionTable(s, "Quit");
     return 1;
 }
 
-fn lua_restart(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaRestart(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "Restart");
+    createActionTable(s, "Restart");
     return 1;
 }
 
-fn lua_toggle_gaps(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaToggleGaps(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "ToggleGaps");
+    createActionTable(s, "ToggleGaps");
     return 1;
 }
 
-fn lua_show_keybinds(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaShowKeybinds(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
-    create_action_table(s, "ShowKeybinds");
+    createActionTable(s, "ShowKeybinds");
     return 1;
 }
 
-fn lua_set_master_factor(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaSetMasterFactor(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const delta: i32 = @intCast(c.lua_tointegerx(s, 1, null));
-    create_action_table_with_int(s, "ResizeMaster", delta);
+    createActionTableWithInt(s, "ResizeMaster", delta);
     return 1;
 }
 
-fn lua_inc_num_master(state: ?*c.lua_State) callconv(.c) c_int {
+fn luaIncNumMaster(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     const delta: i32 = @intCast(c.lua_tointegerx(s, 1, null));
     if (delta > 0) {
-        create_action_table(s, "IncMaster");
+        createActionTable(s, "IncMaster");
     } else {
-        create_action_table(s, "DecMaster");
+        createActionTable(s, "DecMaster");
     }
     return 1;
 }
 
-fn get_string_arg(state: *c.lua_State, idx: c_int) ?[]const u8 {
+fn getStringArg(state: *c.lua_State, idx: c_int) ?[]const u8 {
     if (c.lua_type(state, idx) != c.LUA_TSTRING) return null;
-    return get_lua_string(state, idx);
+    return getLuaString(state, idx);
 }
 
-fn extract_spawn_command(state: *c.lua_State, idx: c_int) ?[]const u8 {
+fn extractSpawnCommand(state: *c.lua_State, idx: c_int) ?[]const u8 {
     const len = c.lua_rawlen(state, idx);
     if (len == 0) return null;
 
     if (len >= 3) {
         _ = c.lua_rawgeti(state, idx, 1);
-        const first = get_lua_string(state, -1);
+        const first = getLuaString(state, -1);
         c.lua_settop(state, -2);
 
         _ = c.lua_rawgeti(state, idx, 2);
-        const second = get_lua_string(state, -1);
+        const second = getLuaString(state, -1);
         c.lua_settop(state, -2);
 
         if (first != null and second != null and
             std.mem.eql(u8, first.?, "sh") and std.mem.eql(u8, second.?, "-c"))
         {
             _ = c.lua_rawgeti(state, idx, 3);
-            const cmd = get_lua_string(state, -1);
+            const cmd = getLuaString(state, -1);
             c.lua_settop(state, -2);
             return cmd;
         }
     }
 
     _ = c.lua_rawgeti(state, idx, 1);
-    const first_elem = get_lua_string(state, -1);
+    const first_elem = getLuaString(state, -1);
     c.lua_settop(state, -2);
     return first_elem;
 }
 
-fn get_lua_string(state: *c.lua_State, idx: c_int) ?[]const u8 {
+fn getLuaString(state: *c.lua_State, idx: c_int) ?[]const u8 {
     const cstr = c.lua_tolstring(state, idx, null);
     if (cstr == null) return null;
     return std.mem.span(cstr);
 }
 
-fn dupe_lua_string(state: *c.lua_State, idx: c_int) ?[]const u8 {
+fn dupeLuaString(state: *c.lua_State, idx: c_int) ?[]const u8 {
     const cfg = config orelse return null;
-    const lua_str = get_lua_string(state, idx) orelse return null;
+    const lua_str = getLuaString(state, idx) orelse return null;
     const arena_allocator = cfg.string_arena.allocator();
     const duped = arena_allocator.dupe(u8, lua_str) catch return null;
     return duped;
 }
 
-fn parse_color(state: *c.lua_State, idx: c_int) u32 {
+fn parseColor(state: *c.lua_State, idx: c_int) u32 {
     const lua_type = c.lua_type(state, idx);
     if (lua_type == c.LUA_TNUMBER) {
         return @intCast(c.lua_tointegerx(state, idx, null));
     }
     if (lua_type == c.LUA_TSTRING) {
-        const str = get_lua_string(state, idx) orelse return 0;
+        const str = getLuaString(state, idx) orelse return 0;
         if (str.len > 0 and str[0] == '#') {
             return std.fmt.parseInt(u32, str[1..], 16) catch return 0;
         }
@@ -1191,15 +1187,15 @@ fn parse_color(state: *c.lua_State, idx: c_int) u32 {
     return 0;
 }
 
-fn parse_scheme(state: *c.lua_State) ColorScheme {
+fn parseScheme(state: *c.lua_State) ColorScheme {
     return ColorScheme{
-        .foreground = parse_color(state, 1),
-        .background = parse_color(state, 2),
-        .border = parse_color(state, 3),
+        .foreground = parseColor(state, 1),
+        .background = parseColor(state, 2),
+        .border = parseColor(state, 3),
     };
 }
 
-fn parse_modifiers(state: *c.lua_State, idx: c_int) u32 {
+fn parseModifiers(state: *c.lua_State, idx: c_int) u32 {
     var mod_mask: u32 = 0;
 
     if (c.lua_type(state, idx) != c.LUA_TTABLE) return mod_mask;
@@ -1208,8 +1204,8 @@ fn parse_modifiers(state: *c.lua_State, idx: c_int) u32 {
     var i: usize = 1;
     while (i <= len) : (i += 1) {
         _ = c.lua_rawgeti(state, idx, @intCast(i));
-        if (get_lua_string(state, -1)) |mod_str| {
-            const parsed = parse_single_modifier(mod_str);
+        if (getLuaString(state, -1)) |mod_str| {
+            const parsed = parseSingleModifier(mod_str);
             mod_mask |= parsed;
         }
         c.lua_settop(state, -2);
@@ -1218,11 +1214,11 @@ fn parse_modifiers(state: *c.lua_State, idx: c_int) u32 {
     return mod_mask;
 }
 
-fn parse_modifiers_at_top(state: *c.lua_State) u32 {
-    return parse_modifiers(state, -1);
+fn parseModifiersAtTop(state: *c.lua_State) u32 {
+    return parseModifiers(state, -1);
 }
 
-fn parse_single_modifier(name: []const u8) u32 {
+fn parseSingleModifier(name: []const u8) u32 {
     if (std.mem.eql(u8, name, "Mod4") or std.mem.eql(u8, name, "mod4") or std.mem.eql(u8, name, "super")) {
         return (1 << 6);
     } else if (std.mem.eql(u8, name, "Mod1") or std.mem.eql(u8, name, "mod1") or std.mem.eql(u8, name, "alt")) {
@@ -1235,7 +1231,7 @@ fn parse_single_modifier(name: []const u8) u32 {
     return 0;
 }
 
-fn parse_action(name: []const u8) ?Action {
+fn parseAction(name: []const u8) ?Action {
     const action_map = .{
         .{ "Spawn", Action.spawn },
         .{ "SpawnTerminal", Action.spawn_terminal },
@@ -1275,7 +1271,7 @@ fn parse_action(name: []const u8) ?Action {
     return null;
 }
 
-fn key_name_to_keysym(name: []const u8) ?u64 {
+fn keynameToKeysym(name: []const u8) ?u64 {
     const key_map = .{
         .{ "Return", 0xff0d },
         .{ "Enter", 0xff0d },

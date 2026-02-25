@@ -1,4 +1,5 @@
 const std = @import("std");
+const zon = @import("build.zig.zon");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -12,6 +13,10 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+
+    const exe_options = b.addOptions();
+    exe_options.addOption([]const u8, "version", zon.version);
+    exe.root_module.addOptions("build_options", exe_options);
 
     exe.root_module.addAnonymousImport("templates/config.lua", .{
         .root_source_file = b.path("templates/config.lua"),
@@ -81,16 +86,16 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&b.addRunArtifact(lua_config_tests).step);
 
     const xephyr_step = b.step("xephyr", "Run in Xephyr (1280x800 on :2)");
-    xephyr_step.dependOn(&add_xephyr_run(b, exe, false).step);
+    xephyr_step.dependOn(&addXephyrRun(b, exe, false).step);
 
     const xephyr_multi_step = b.step("xephyr-multi", "Run in Xephyr multi-monitor on :2");
-    xephyr_multi_step.dependOn(&add_xephyr_run(b, exe, true).step);
+    xephyr_multi_step.dependOn(&addXephyrRun(b, exe, true).step);
 
     const multimon_step = b.step("multimon", "Alias for xephyr-multi");
-    multimon_step.dependOn(&add_xephyr_run(b, exe, true).step);
+    multimon_step.dependOn(&addXephyrRun(b, exe, true).step);
 
     const xwayland_step = b.step("xwayland", "Run in Xwayland on :2");
-    xwayland_step.dependOn(&add_xwayland_run(b, exe).step);
+    xwayland_step.dependOn(&addXwaylandRun(b, exe).step);
 
     const kill_step = b.step("kill", "Kill Xephyr and oxwm");
     kill_step.dependOn(&b.addSystemCommand(&.{ "sh", "-c", "pkill -9 Xephyr || true; pkill -9 oxwm || true" }).step);
@@ -125,7 +130,7 @@ pub fn build(b: *std.Build) void {
     }).step);
 }
 
-fn add_xephyr_run(b: *std.Build, exe: *std.Build.Step.Compile, multimon: bool) *std.Build.Step.Run {
+fn addXephyrRun(b: *std.Build, exe: *std.Build.Step.Compile, multimon: bool) *std.Build.Step.Run {
     const kill_cmd = if (multimon)
         "pkill -9 Xephyr || true; Xephyr +xinerama -glamor -screen 640x480 -screen 640x480 :2 & sleep 1"
     else
@@ -141,7 +146,7 @@ fn add_xephyr_run(b: *std.Build, exe: *std.Build.Step.Compile, multimon: bool) *
     return run_wm;
 }
 
-fn add_xwayland_run(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step.Run {
+fn addXwaylandRun(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step.Run {
     const cmd = "Xwayland -retro -noreset :2 & sleep 1";
 
     const setup = b.addSystemCommand(&.{ "sh", "-c", cmd });

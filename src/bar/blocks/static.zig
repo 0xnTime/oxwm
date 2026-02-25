@@ -18,7 +18,7 @@ pub const Static = struct {
         return 0;
     }
 
-    pub fn get_color(self: *Static) c_ulong {
+    pub fn getColor(self: *Static) c_ulong {
         return self.color;
     }
 };

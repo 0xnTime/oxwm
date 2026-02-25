@@ -36,13 +36,13 @@ pub const Action = enum {
     scroll_right,
 };
 
-pub const Key_Press = struct {
+pub const KeyPress = struct {
     mod_mask: u32 = 0,
     keysym: u64 = 0,
 };
 
 pub const Keybind = struct {
-    keys: [4]Key_Press = [_]Key_Press{.{}} ** 4,
+    keys: [4]KeyPress = [_]KeyPress{.{}} ** 4,
     key_count: u8 = 1,
     action: Action,
     int_arg: i32 = 0,
@@ -59,7 +59,7 @@ pub const Rule = struct {
     focus: bool,
 };
 
-pub const Block_Type = enum {
+pub const BlockType = enum {
     static,
     datetime,
     ram,
@@ -68,27 +68,27 @@ pub const Block_Type = enum {
     cpu_temp,
 };
 
-pub const Click_Target = enum {
+pub const ClickTarget = enum {
     client_win,
     root_win,
     tag_bar,
 };
 
-pub const Mouse_Action = enum {
+pub const MouseAction = enum {
     move_mouse,
     resize_mouse,
     toggle_floating,
 };
 
-pub const Mouse_Button = struct {
-    click: Click_Target,
+pub const MouseButton = struct {
+    click: ClickTarget,
     mod_mask: u32,
     button: u32,
-    action: Mouse_Action,
+    action: MouseAction,
 };
 
 pub const Block = struct {
-    block_type: Block_Type,
+    block_type: BlockType,
     format: []const u8,
     command: ?[]const u8 = null,
     interval: u32,
@@ -145,7 +145,7 @@ pub const Config = struct {
     keybinds: std.ArrayListUnmanaged(Keybind) = .{},
     rules: std.ArrayListUnmanaged(Rule) = .{},
     blocks: std.ArrayListUnmanaged(Block) = .{},
-    buttons: std.ArrayListUnmanaged(Mouse_Button) = .{},
+    buttons: std.ArrayListUnmanaged(MouseButton) = .{},
     autostart: std.ArrayListUnmanaged([]const u8) = .{},
 
     pub fn init(allocator: std.mem.Allocator) Config {
@@ -164,33 +164,83 @@ pub const Config = struct {
         self.autostart.deinit(self.allocator);
     }
 
-    pub fn add_keybind(self: *Config, keybind: Keybind) !void {
+    pub fn addKeybind(self: *Config, keybind: Keybind) !void {
         try self.keybinds.append(self.allocator, keybind);
     }
 
-    pub fn add_rule(self: *Config, rule: Rule) !void {
+    pub fn addRule(self: *Config, rule: Rule) !void {
         try self.rules.append(self.allocator, rule);
     }
 
-    pub fn add_block(self: *Config, block: Block) !void {
+    pub fn addBlock(self: *Config, block: Block) !void {
         try self.blocks.append(self.allocator, block);
     }
 
-    pub fn add_button(self: *Config, button: Mouse_Button) !void {
+    pub fn addButton(self: *Config, button: MouseButton) !void {
         try self.buttons.append(self.allocator, button);
     }
 
-    pub fn add_autostart(self: *Config, cmd: []const u8) !void {
+    pub fn addAutostart(self: *Config, cmd: []const u8) !void {
         try self.autostart.append(self.allocator, cmd);
     }
 };
 
-pub var global_config: ?*Config = null;
+pub fn initializeDefaultConfig(cfg: *Config) void {
+    const mod_key: u32 = 1 << 6;
+    const shift_key: u32 = 1 << 0;
+    const control_key: u32 = 1 << 2;
 
-pub fn get_config() ?*Config {
-    return global_config;
+    cfg.addKeybind(makeKeybind(mod_key, 0xff0d, .spawn_terminal)) catch {};
+    cfg.addKeybind(makeKeybindStr(mod_key, 'd', .spawn, "rofi -show drun")) catch {};
+    cfg.addKeybind(makeKeybindStr(mod_key, 's', .spawn, "maim -s | xclip -selection clipboard -t image/png")) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 'q', .kill_client)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key | shift_key, 'q', .quit)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key | shift_key, 'r', .reload_config)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 'j', .focus_next)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 'k', .focus_prev)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key | shift_key, 'j', .move_next)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key | shift_key, 'k', .move_prev)) catch {};
+    cfg.addKeybind(makeKeybindInt(mod_key, 'h', .resize_master, -50)) catch {};
+    cfg.addKeybind(makeKeybindInt(mod_key, 'l', .resize_master, 50)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 'i', .inc_master)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 'p', .dec_master)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 'a', .toggle_gaps)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 'f', .toggle_fullscreen)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 0x0020, .toggle_floating)) catch {};
+    cfg.addKeybind(makeKeybind(mod_key, 'n', .cycle_layout)) catch {};
+    cfg.addKeybind(makeKeybindInt(mod_key, 0x002c, .focus_monitor, -1)) catch {};
+    cfg.addKeybind(makeKeybindInt(mod_key, 0x002e, .focus_monitor, 1)) catch {};
+    cfg.addKeybind(makeKeybindInt(mod_key | shift_key, 0x002c, .send_to_monitor, -1)) catch {};
+    cfg.addKeybind(makeKeybindInt(mod_key | shift_key, 0x002e, .send_to_monitor, 1)) catch {};
+
+    var tag_index: i32 = 0;
+    while (tag_index < 9) : (tag_index += 1) {
+        const keysym: u64 = @as(u64, '1') + @as(u64, @intCast(tag_index));
+        cfg.addKeybind(makeKeybindInt(mod_key, keysym, .view_tag, tag_index)) catch {};
+        cfg.addKeybind(makeKeybindInt(mod_key | shift_key, keysym, .move_to_tag, tag_index)) catch {};
+        cfg.addKeybind(makeKeybindInt(mod_key | control_key, keysym, .toggle_view_tag, tag_index)) catch {};
+        cfg.addKeybind(makeKeybindInt(mod_key | control_key | shift_key, keysym, .toggle_tag, tag_index)) catch {};
+    }
+
+    cfg.addButton(.{ .click = .client_win, .mod_mask = mod_key, .button = 1, .action = .move_mouse }) catch {};
+    cfg.addButton(.{ .click = .client_win, .mod_mask = mod_key, .button = 3, .action = .resize_mouse }) catch {};
 }
 
-pub fn set_config(cfg: *Config) void {
-    global_config = cfg;
+fn makeKeybind(mod: u32, key: u64, action: Action) Keybind {
+    var kb: Keybind = .{ .action = action };
+    kb.keys[0] = .{ .mod_mask = mod, .keysym = key };
+    kb.key_count = 1;
+    return kb;
+}
+
+fn makeKeybindInt(mod: u32, key: u64, action: Action, int_arg: i32) Keybind {
+    var kb = makeKeybind(mod, key, action);
+    kb.int_arg = int_arg;
+    return kb;
+}
+
+fn makeKeybindStr(mod: u32, key: u64, action: Action, str_arg: []const u8) Keybind {
+    var kb = makeKeybind(mod, key, action);
+    kb.str_arg = str_arg;
+    return kb;
 }

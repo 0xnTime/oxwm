@@ -10,3 +10,5 @@ target/
 # Notes
 notes/
 *.md
+
+oxwm-rs/

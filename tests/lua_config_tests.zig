@@ -13,6 +13,6 @@ test "test-config.lua loads without errors" {
     }
     defer lua.deinit();
 
-    const loaded = lua.load_file("resources/test-config.lua");
+    const loaded = lua.loadFile("resources/test-config.lua");
     try testing.expect(loaded);
 }

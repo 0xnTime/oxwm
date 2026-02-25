@@ -13,8 +13,8 @@ pub const layout = monitor_mod.Layout{
 
 pub fn grid(monitor: *Monitor) void {
     var client_count: u32 = 0;
-    var current = client_mod.next_tiled(monitor.clients);
-    while (current) |_| : (current = client_mod.next_tiled(current.?.next)) {
+    var current = client_mod.nextTiled(monitor.clients);
+    while (current) |_| : (current = client_mod.nextTiled(current.?.next)) {
         client_count += 1;
     }
 
@@ -26,7 +26,7 @@ pub fn grid(monitor: *Monitor) void {
     const gap_inner_v = monitor.gap_inner_v;
 
     if (client_count == 1) {
-        const client = client_mod.next_tiled(monitor.clients).?;
+        const client = client_mod.nextTiled(monitor.clients).?;
         tiling.resize(
             client,
             monitor.win_x + gap_outer_v,
@@ -50,8 +50,8 @@ pub fn grid(monitor: *Monitor) void {
     const cell_height: i32 = @divTrunc(available_height, @as(i32, @intCast(rows)));
 
     var index: u32 = 0;
-    current = client_mod.next_tiled(monitor.clients);
-    while (current) |client| : (current = client_mod.next_tiled(client.next)) {
+    current = client_mod.nextTiled(monitor.clients);
+    while (current) |client| : (current = client_mod.nextTiled(client.next)) {
         const row = index / cols;
         const col = index % cols;
 

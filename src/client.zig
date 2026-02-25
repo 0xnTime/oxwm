@@ -38,22 +38,19 @@ pub const Client = struct {
     window: xlib.Window = 0,
 };
 
-var allocator: std.mem.Allocator = undefined;
-
-pub fn init(alloc: std.mem.Allocator) void {
-    allocator = alloc;
-}
-
-pub fn create(window: xlib.Window) ?*Client {
+/// Initialises a new `Client` for the given X window.
+pub fn create(allocator: std.mem.Allocator, window: xlib.Window) ?*Client {
     const client = allocator.create(Client) catch return null;
     client.* = Client{ .window = window };
     return client;
 }
 
-pub fn destroy(client: *Client) void {
+/// Frees a client previously returned by `create`.
+pub fn destroy(allocator: std.mem.Allocator, client: *Client) void {
     allocator.destroy(client);
 }
 
+/// Prepends `client` to the front of its monitor's client list.
 pub fn attach(client: *Client) void {
     if (client.monitor) |monitor| {
         client.next = monitor.clients;
@@ -61,6 +58,7 @@ pub fn attach(client: *Client) void {
     }
 }
 
+/// Removes `client` from its monitor's client list.
 pub fn detach(client: *Client) void {
     if (client.monitor) |monitor| {
         var current_ptr: *?*Client = &monitor.clients;
@@ -74,14 +72,16 @@ pub fn detach(client: *Client) void {
     }
 }
 
-pub fn attach_stack(client: *Client) void {
+/// Prepends `client` to the front of its monitor's focus stack.
+pub fn attachStack(client: *Client) void {
     if (client.monitor) |monitor| {
         client.stack_next = monitor.stack;
         monitor.stack = client;
     }
 }
 
-pub fn detach_stack(client: *Client) void {
+/// Removes `client` from its monitor's focus stack.
+pub fn detachStack(client: *Client) void {
     if (client.monitor) |monitor| {
         var current_ptr: *?*Client = &monitor.stack;
         while (current_ptr.*) |current| {
@@ -94,15 +94,15 @@ pub fn detach_stack(client: *Client) void {
     }
 }
 
-pub fn window_to_client(window: xlib.Window) ?*Client {
-    const monitor_mod = @import("monitor.zig");
-    var current_monitor = monitor_mod.monitors;
+/// Searches all monitors for a client whose X window matches `window`.
+///
+/// `monitors` is the head of the monitor linked list.
+pub fn windowToClient(monitors: ?*Monitor, window: xlib.Window) ?*Client {
+    var current_monitor = monitors;
     while (current_monitor) |monitor| {
         var current_client = monitor.clients;
         while (current_client) |client| {
-            if (client.window == window) {
-                return client;
-            }
+            if (client.window == window) return client;
             current_client = client.next;
         }
         current_monitor = monitor.next;
@@ -110,42 +110,46 @@ pub fn window_to_client(window: xlib.Window) ?*Client {
     return null;
 }
 
-pub fn next_tiled(client: ?*Client) ?*Client {
-    var current = client;
-    while (current) |iter| {
-        if (!iter.is_floating and is_visible(iter)) {
-            return iter;
-        }
-        current = iter.next;
-    }
-    return null;
-}
-
-pub fn is_visible(client: *Client) bool {
+/// Returns true if `client` is visible on its monitor's currently selected
+/// tag set.
+pub fn isVisible(client: *Client) bool {
     if (client.monitor) |monitor| {
         return (client.tags & monitor.tagset[monitor.sel_tags]) != 0;
     }
     return false;
 }
 
-pub fn is_visible_on_tag(client: *Client, tags: u32) bool {
+/// Returns true if `client` is visible on the given tag bitmask.
+pub fn isVisibleOnTag(client: *Client, tags: u32) bool {
     return (client.tags & tags) != 0;
 }
 
-pub fn next_tagged(client: *Client) ?*Client {
+/// Returns the first non-floating, visible client at or after `client`.
+pub fn nextTiled(client: ?*Client) ?*Client {
+    var current = client;
+    while (current) |iter| {
+        if (!iter.is_floating and isVisible(iter)) return iter;
+        current = iter.next;
+    }
+    return null;
+}
+
+/// Returns the first non-floating client on `client`'s monitor that shares
+/// any tag with `client`. Used for `attach_aside` ordering.
+pub fn nextTagged(client: *Client) ?*Client {
     const monitor = client.monitor orelse return null;
     var walked = monitor.clients;
     while (walked) |iter| {
-        if (!iter.is_floating and is_visible_on_tag(iter, client.tags)) {
-            return iter;
-        }
+        if (!iter.is_floating and isVisibleOnTag(iter, client.tags)) return iter;
         walked = iter.next;
     }
     return null;
 }
 
-pub fn attach_aside(client: *Client) void {
-    const at = next_tagged(client);
+/// Inserts `client` just after the first client that shares its tags,
+/// falling back to prepend if none exists.
+pub fn attachAside(client: *Client) void {
+    const at = nextTagged(client);
     if (at == null) {
         attach(client);
         return;
@@ -154,29 +158,30 @@ pub fn attach_aside(client: *Client) void {
     at.?.next = client;
 }
 
-pub fn count_tiled(monitor: *Monitor) u32 {
+/// Counts non-floating, visible clients on `monitor`.
+pub fn countTiled(monitor: *Monitor) u32 {
     var count: u32 = 0;
-    var current = next_tiled(monitor.clients);
+    var current = nextTiled(monitor.clients);
     while (current) |client| {
         count += 1;
-        current = next_tiled(client.next);
+        current = nextTiled(client.next);
     }
     return count;
 }
 
-pub fn tiled_window_at(exclude: *Client, monitor: *Monitor, point_x: i32, point_y: i32) ?*Client {
+/// Returns the tiled client on `monitor` whose bounds contain (`point_x`,
+/// `point_y`), excluding `exclude`.  Returns null if none found.
+pub fn tiledWindowAt(exclude: *Client, monitor: *Monitor, point_x: i32, point_y: i32) ?*Client {
     const tags = monitor.tagset[monitor.sel_tags];
     var current = monitor.clients;
 
     while (current) |client| {
         if (client != exclude and !client.is_floating and (client.tags & tags) != 0) {
-            const client_x = client.x;
-            const client_y = client.y;
             const client_w = client.width + client.border_width * 2;
             const client_h = client.height + client.border_width * 2;
 
-            if (point_x >= client_x and point_x < client_x + client_w and
-                point_y >= client_y and point_y < client_y + client_h)
+            if (point_x >= client.x and point_x < client.x + client_w and
+                point_y >= client.y and point_y < client.y + client_h)
             {
                 return client;
             }
@@ -186,7 +191,9 @@ pub fn tiled_window_at(exclude: *Client, monitor: *Monitor, point_x: i32, point_
     return null;
 }
 
-pub fn insert_before(client: *Client, target: *Client) void {
+/// Moves `client` to just before `target` in the monitor's client list.
+/// Does nothing if they are on different monitors.
+pub fn insertBefore(client: *Client, target: *Client) void {
     const monitor = target.monitor orelse return;
     if (client.monitor != monitor) return;
 
@@ -209,7 +216,9 @@ pub fn insert_before(client: *Client, target: *Client) void {
     }
 }
 
-pub fn swap_clients(client_a: *Client, client_b: *Client) void {
+/// Swaps the positions of `client_a` and `client_b` in their shared monitor's
+/// client list.  Does nothing if they are on different monitors.
+pub fn swapClients(client_a: *Client, client_b: *Client) void {
     const monitor = client_a.monitor orelse return;
     if (client_b.monitor != monitor) return;
 
@@ -229,31 +238,15 @@ pub fn swap_clients(client_a: *Client, client_b: *Client) void {
     if (next_a == client_b) {
         client_a.next = next_b;
         client_b.next = client_a;
-        if (prev_a) |prev| {
-            prev.next = client_b;
-        } else {
-            monitor.clients = client_b;
-        }
+        if (prev_a) |prev| prev.next = client_b else monitor.clients = client_b;
     } else if (next_b == client_a) {
         client_b.next = next_a;
         client_a.next = client_b;
-        if (prev_b) |prev| {
-            prev.next = client_a;
-        } else {
-            monitor.clients = client_a;
-        }
+        if (prev_b) |prev| prev.next = client_a else monitor.clients = client_a;
     } else {
         client_a.next = next_b;
         client_b.next = next_a;
-        if (prev_a) |prev| {
-            prev.next = client_b;
-        } else {
-            monitor.clients = client_b;
-        }
-        if (prev_b) |prev| {
-            prev.next = client_a;
-        } else {
-            monitor.clients = client_a;
-        }
+        if (prev_a) |prev| prev.next = client_b else monitor.clients = client_b;
+        if (prev_b) |prev| prev.next = client_a else monitor.clients = client_a;
     }
 }

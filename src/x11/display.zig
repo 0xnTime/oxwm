@@ -2,8 +2,8 @@ const std = @import("std");
 const xlib = @import("xlib.zig");
 
 pub const DisplayError = error{
-    cannot_open_display,
-    another_wm_running,
+    CannotOpenDisplay,
+    AnotherWmRunning,
 };
 
 var wm_detected: bool = false;
@@ -14,7 +14,7 @@ pub const Display = struct {
     root: xlib.Window,
 
     pub fn open() DisplayError!Display {
-        const handle = xlib.XOpenDisplay(null) orelse return DisplayError.cannot_open_display;
+        const handle = xlib.XOpenDisplay(null) orelse return DisplayError.CannotOpenDisplay;
         const screen = xlib.XDefaultScreen(handle);
         const root = xlib.XRootWindow(handle, screen);
 
@@ -29,9 +29,9 @@ pub const Display = struct {
         _ = xlib.XCloseDisplay(self.handle);
     }
 
-    pub fn become_window_manager(self: *Display) DisplayError!void {
+    pub fn becomeWindowManager(self: *Display) DisplayError!void {
         wm_detected = false;
-        _ = xlib.XSetErrorHandler(on_wm_detected);
+        _ = xlib.XSetErrorHandler(onWmDetected);
         _ = xlib.XSelectInput(
             self.handle,
             self.root,
@@ -40,21 +40,21 @@ pub const Display = struct {
         _ = xlib.XSync(self.handle, xlib.False);
 
         if (wm_detected) {
-            return DisplayError.another_wm_running;
+            return DisplayError.AnotherWmRunning;
         }
 
-        _ = xlib.XSetErrorHandler(on_x_error);
+        _ = xlib.XSetErrorHandler(onXError);
     }
 
-    pub fn screen_width(self: *Display) c_int {
+    pub fn screenWidth(self: *Display) c_int {
         return xlib.XDisplayWidth(self.handle, self.screen);
     }
 
-    pub fn screen_height(self: *Display) c_int {
+    pub fn screenHeight(self: *Display) c_int {
         return xlib.XDisplayHeight(self.handle, self.screen);
     }
 
-    pub fn next_event(self: *Display) xlib.XEvent {
+    pub fn nextEvent(self: *Display) xlib.XEvent {
         var event: xlib.XEvent = undefined;
         _ = xlib.XNextEvent(self.handle, &event);
         return event;
@@ -68,7 +68,7 @@ pub const Display = struct {
         _ = xlib.XSync(self.handle, if (discard) xlib.True else xlib.False);
     }
 
-    pub fn grab_key(
+    pub fn grabKey(
         self: *Display,
         keycode: c_int,
         modifiers: c_uint,
@@ -84,17 +84,17 @@ pub const Display = struct {
         );
     }
 
-    pub fn keysym_to_keycode(self: *Display, keysym: xlib.KeySym) c_int {
+    pub fn keysymToKeycode(self: *Display, keysym: xlib.KeySym) c_int {
         return @intCast(xlib.XKeysymToKeycode(self.handle, keysym));
     }
 };
 
-fn on_wm_detected(_: ?*xlib.Display, _: [*c]xlib.XErrorEvent) callconv(.c) c_int {
+fn onWmDetected(_: ?*xlib.Display, _: [*c]xlib.XErrorEvent) callconv(.c) c_int {
     wm_detected = true;
     return 0;
 }
 
-fn on_x_error(_: ?*xlib.Display, event: [*c]xlib.XErrorEvent) callconv(.c) c_int {
+fn onXError(_: ?*xlib.Display, event: [*c]xlib.XErrorEvent) callconv(.c) c_int {
     std.debug.print("x11 error: request={d} error={d}\n", .{ event.*.request_code, event.*.error_code });
     return 0;
 }

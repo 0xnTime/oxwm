@@ -27,9 +27,9 @@ pub const Ram = struct {
         var lines = std.mem.splitScalar(u8, file_content, '\n');
         while (lines.next()) |line| {
             if (std.mem.startsWith(u8, line, "MemTotal:")) {
-                total = parse_mem_value(line);
+                total = parseMemValue(line);
             } else if (std.mem.startsWith(u8, line, "MemAvailable:")) {
-                available = parse_mem_value(line);
+                available = parseMemValue(line);
             }
         }
 
@@ -56,12 +56,12 @@ pub const Ram = struct {
         return self.interval_secs;
     }
 
-    pub fn get_color(self: *Ram) c_ulong {
+    pub fn getColor(self: *Ram) c_ulong {
         return self.color;
     }
 };
 
-fn parse_mem_value(line: []const u8) u64 {
+fn parseMemValue(line: []const u8) u64 {
     var iter = std.mem.tokenizeAny(u8, line, ": \tkB");
     _ = iter.next();
     if (iter.next()) |value_str| {

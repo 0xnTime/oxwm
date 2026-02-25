@@ -39,21 +39,21 @@ pub const EventType = enum(c_int) {
     _,
 };
 
-pub fn get_event_type(event: *const xlib.XEvent) EventType {
+pub fn getEventType(event: *const xlib.XEvent) EventType {
     return @enumFromInt(event.type);
 }
 
-pub fn event_name(event_type: EventType) []const u8 {
+pub fn eventName(event_type: EventType) []const u8 {
     if (@intFromEnum(event_type) > @intFromEnum(EventType.generic_event)) return "unknown";
 
     return @tagName(event_type);
 }
 
-test event_name {
+test eventName {
     const testing = std.testing;
 
-    const name = event_name(.key_press);
+    const name = eventName(.key_press);
     try testing.expectEqualStrings("key_press", name);
 
-    try testing.expectEqualStrings("unknown", event_name(@enumFromInt(100)));
+    try testing.expectEqualStrings("unknown", eventName(@enumFromInt(100)));
 }

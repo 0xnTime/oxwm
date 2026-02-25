@@ -16,7 +16,7 @@ pub fn monocle(monitor: *Monitor) void {
     const gap_h = monitor.gap_outer_h;
     const gap_v = monitor.gap_outer_v;
 
-    var current = client_mod.next_tiled(monitor.clients);
+    var current = client_mod.nextTiled(monitor.clients);
     while (current) |client| {
         tiling.resize(
             client,
@@ -26,6 +26,6 @@ pub fn monocle(monitor: *Monitor) void {
             monitor.win_h - 2 * gap_h - 2 * client.border_width,
             false,
         );
-        current = client_mod.next_tiled(client.next);
+        current = client_mod.nextTiled(client.next);
     }
 }
