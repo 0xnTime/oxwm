@@ -35,6 +35,7 @@ pub fn main() !void {
             return;
         } else if (std.mem.eql(u8, arg, "--validate")) {
             validate_mode = true;
+            if (args.next()) |path| config_path = path;
         }
     }
 
