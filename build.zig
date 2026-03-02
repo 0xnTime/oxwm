@@ -24,7 +24,8 @@ pub fn build(b: *std.Build) void {
 
     exe.use_lld = false;
 
-    exe.linkSystemLibrary("lua5.4");
+    const lua = buildLua(b, target, optimize);
+    exe.linkLibrary(lua);
     exe.linkSystemLibrary("X11");
     exe.linkSystemLibrary("Xinerama");
     exe.linkSystemLibrary("Xft");
@@ -60,7 +61,7 @@ pub fn build(b: *std.Build) void {
         }),
     });
     src_main_unit_tests.use_lld = false;
-    src_main_unit_tests.linkSystemLibrary("lua5.4");
+    src_main_unit_tests.linkLibrary(lua);
     src_main_unit_tests.linkSystemLibrary("X11");
     src_main_unit_tests.linkSystemLibrary("Xinerama");
     src_main_unit_tests.linkSystemLibrary("Xft");
@@ -81,7 +82,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     }));
-    lua_config_tests.linkSystemLibrary("lua5.4");
+    lua_config_tests.linkLibrary(lua);
     lua_config_tests.linkLibC();
     test_step.dependOn(&b.addRunArtifact(lua_config_tests).step);
 
@@ -156,4 +157,60 @@ fn addXwaylandRun(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step.R
     run_wm.setEnvironmentVariable("DISPLAY", ":2");
 
     return run_wm;
+}
+
+fn buildLua(b: *std.Build, target: std.Build.ResolvedTarget, optimize: std.builtin.OptimizeMode) *std.Build.Step.Compile {
+    const lua_src = b.dependency("lua", .{});
+    const lua = b.addLibrary(.{
+        .name = "lua",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    lua.linkLibC();
+    lua.addIncludePath(lua_src.path("src/"));
+    lua.addCSourceFiles(.{
+        .root = lua_src.path("src/"),
+        .files = &.{
+            "lapi.c",
+            "lauxlib.c",
+            "lbaselib.c",
+            "lcode.c",
+            "lcorolib.c",
+            "lctype.c",
+            "ldblib.c",
+            "ldebug.c",
+            "ldo.c",
+            "ldump.c",
+            "lfunc.c",
+            "lgc.c",
+            "linit.c",
+            "liolib.c",
+            "llex.c",
+            "lmathlib.c",
+            "lmem.c",
+            "loadlib.c",
+            "lobject.c",
+            "lopcodes.c",
+            "loslib.c",
+            "lparser.c",
+            "lstate.c",
+            "lstring.c",
+            "lstrlib.c",
+            "ltable.c",
+            "ltablib.c",
+            "ltm.c",
+            "lundump.c",
+            "lutf8lib.c",
+            "lvm.c",
+            "lzio.c",
+        },
+    });
+    lua.installHeader(lua_src.path("src/lua.h"), "lua.h");
+    lua.installHeader(lua_src.path("src/lualib.h"), "lualib.h");
+    lua.installHeader(lua_src.path("src/lauxlib.h"), "lauxlib.h");
+    lua.installHeader(lua_src.path("src/luaconf.h"), "luaconf.h");
+
+    return lua;
 }
