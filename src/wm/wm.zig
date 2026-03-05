@@ -158,48 +158,57 @@ pub const WindowManager = struct {
         self.config.deinit();
     }
 
+    const layouts = [_]*const monitor_mod.Layout{
+        &tiling.layout,
+        &monocle.layout,
+        &floating.layout,
+        &scrolling.layout,
+        &grid.layout,
+    };
+
+    fn initMonitor(self: *WindowManager, mon: *Monitor, num: usize, x: i16, y: i16, w: c_int, h: c_int) void {
+        mon.num = @intCast(num);
+        mon.mon_x = x;
+        mon.mon_y = y;
+        mon.mon_w = w;
+        mon.mon_h = h;
+        mon.win_x = x;
+        mon.win_y = y;
+        mon.win_w = w;
+        mon.win_h = h;
+
+        for (&mon.lt, layouts) |*slot, layout| {
+            slot.* = layout;
+        }
+
+        if (std.meta.stringToEnum(config_mod.Layouts, self.config.layout)) |value| {
+            mon.sel_lt = @intFromEnum(value);
+        }
+
+        for (0..10) |i| {
+            for (0..layouts.len) |j| {
+                mon.pertag.ltidxs[i][j] = mon.lt[j];
+            }
+            mon.pertag.sellts[i] = mon.sel_lt;
+        }
+
+        self.initMonitorGaps(mon);
+    }
+
     fn setupMonitors(self: *WindowManager) void {
         if (xlib.XineramaIsActive(self.display.handle) != 0) {
             var screen_count: c_int = 0;
             const screens = xlib.XineramaQueryScreens(self.display.handle, &screen_count);
+            defer if (screens != null) {
+                _ = xlib.XFree(@ptrCast(screens));
+            };
 
             if (screen_count > 0 and screens != null) {
                 var prev_monitor: ?*Monitor = null;
-                var index: usize = 0;
-
-                while (index < @as(usize, @intCast(screen_count))) : (index += 1) {
+                for (0..@as(usize, @intCast(screen_count))) |index| {
                     const screen = screens[index];
                     const mon = monitor_mod.create(self.allocator) orelse continue;
-
-                    mon.num = @intCast(index);
-                    mon.mon_x = screen.x_org;
-                    mon.mon_y = screen.y_org;
-                    mon.mon_w = screen.width;
-                    mon.mon_h = screen.height;
-                    mon.win_x = screen.x_org;
-                    mon.win_y = screen.y_org;
-                    mon.win_w = screen.width;
-                    mon.win_h = screen.height;
-
-                    mon.lt[@intFromEnum(config_mod.Layouts.tiling)] = &tiling.layout;
-                    mon.lt[@intFromEnum(config_mod.Layouts.monocle)] = &monocle.layout;
-                    mon.lt[@intFromEnum(config_mod.Layouts.floating)] = &floating.layout;
-                    mon.lt[@intFromEnum(config_mod.Layouts.scrolling)] = &scrolling.layout;
-                    mon.lt[@intFromEnum(config_mod.Layouts.grid)] = &grid.layout;
-
-                    if (std.meta.stringToEnum(config_mod.Layouts, self.config.layout)) |value| {
-                        mon.sel_lt = @intFromEnum(value);
-                    }
-
-                    for (0..10) |i| {
-                        mon.pertag.ltidxs[i][0] = mon.lt[0];
-                        mon.pertag.ltidxs[i][1] = mon.lt[1];
-                        mon.pertag.ltidxs[i][2] = mon.lt[2];
-                        mon.pertag.ltidxs[i][3] = mon.lt[3];
-                        mon.pertag.ltidxs[i][4] = mon.lt[4];
-                    }
-
-                    self.initMonitorGaps(mon);
+                    self.initMonitor(mon, index, screen.x_org, screen.y_org, screen.width, screen.height);
 
                     if (prev_monitor) |prev| {
                         prev.next = mon;
@@ -209,43 +218,12 @@ pub const WindowManager = struct {
                     }
                     prev_monitor = mon;
                 }
-
-                _ = xlib.XFree(@ptrCast(screens));
             }
         }
 
-        // Fallback: single monitor covering the full screen.
         if (self.monitors == null) {
             const mon = monitor_mod.create(self.allocator) orelse return;
-            mon.num = 0;
-            mon.mon_x = 0;
-            mon.mon_y = 0;
-            mon.mon_w = self.display.screenWidth();
-            mon.mon_h = self.display.screenHeight();
-            mon.win_x = 0;
-            mon.win_y = 0;
-            mon.win_w = mon.mon_w;
-            mon.win_h = mon.mon_h;
-
-            mon.lt[@intFromEnum(config_mod.Layouts.tiling)] = &tiling.layout;
-            mon.lt[@intFromEnum(config_mod.Layouts.monocle)] = &monocle.layout;
-            mon.lt[@intFromEnum(config_mod.Layouts.floating)] = &floating.layout;
-            mon.lt[@intFromEnum(config_mod.Layouts.scrolling)] = &scrolling.layout;
-            mon.lt[@intFromEnum(config_mod.Layouts.grid)] = &grid.layout;
-
-            if (std.meta.stringToEnum(config_mod.Layouts, self.config.layout)) |value| {
-                mon.sel_lt = @intFromEnum(value);
-            }
-
-            for (0..10) |i| {
-                mon.pertag.ltidxs[i][0] = mon.lt[0];
-                mon.pertag.ltidxs[i][1] = mon.lt[1];
-                mon.pertag.ltidxs[i][2] = mon.lt[2];
-                mon.pertag.ltidxs[i][3] = mon.lt[3];
-                mon.pertag.ltidxs[i][4] = mon.lt[4];
-            }
-
-            self.initMonitorGaps(mon);
+            self.initMonitor(mon, 0, 0, 0, self.display.screenWidth(), self.display.screenHeight());
             self.monitors = mon;
             self.selected_monitor = mon;
         }
