@@ -358,7 +358,7 @@ pub fn cycleLayout(wm: *WindowManager) void {
 pub fn setLayout(layout_name: ?[]const u8, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const name = layout_name orelse return;
-    const new_lt: u32 = if (std.meta.stringToEnum(config_mod.Layouts, name)) |value|
+    const new_lt: u32 = if (config_mod.Layouts.fromString(name)) |value|
         @intFromEnum(value)
     else {
         std.debug.print("set_layout: unknown layout '{s}'\n", .{name});

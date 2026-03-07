@@ -114,6 +114,10 @@ oxwm.set_layout_symbol("tiling", "[T]")
 oxwm.set_layout_symbol("normie", "[F]")
 oxwm.set_layout_symbol("tabbed", "[=]")
 
+-- Set default layout of specific tag (tag_index, layout_name)
+-- Unset value uses oxwm.set_layout value
+-- oxwm.set_tag_layout(1, "grid")
+
 -------------------------------------------------------------------------------
 -- Appearance
 -------------------------------------------------------------------------------

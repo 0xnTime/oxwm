@@ -86,6 +86,15 @@ pub const Layouts = enum(u32) {
     floating,
     scrolling,
     grid,
+
+    pub fn fromString(name: []const u8) ?Layouts {
+        if (std.meta.stringToEnum(Layouts, name)) |v| return v;
+        if (std.mem.eql(u8, name, "tile")) return .tiling;
+        if (std.mem.eql(u8, name, "normie")) return .floating;
+        if (std.mem.eql(u8, name, "float")) return .floating;
+        if (std.mem.eql(u8, name, "scroll")) return .scrolling;
+        return null;
+    }
 };
 
 pub const MouseButton = struct {
@@ -125,6 +134,7 @@ pub const Config = struct {
     bar_position: []const u8 = "top",
     tags: [9][]const u8 = .{ "1", "2", "3", "4", "5", "6", "7", "8", "9" },
     layout: []const u8 = "tiling",
+    tag_layouts: [9]?[]const u8 = .{null} ** 9,
 
     border_width: i32 = 2,
     border_focused: u32 = 0x6dade3,

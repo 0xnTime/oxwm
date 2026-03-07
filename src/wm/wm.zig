@@ -181,7 +181,7 @@ pub const WindowManager = struct {
             slot.* = layout;
         }
 
-        if (std.meta.stringToEnum(config_mod.Layouts, self.config.layout)) |value| {
+        if (config_mod.Layouts.fromString(self.config.layout)) |value| {
             mon.sel_lt = @intFromEnum(value);
         }
 
@@ -190,6 +190,14 @@ pub const WindowManager = struct {
                 mon.pertag.ltidxs[i][j] = mon.lt[j];
             }
             mon.pertag.sellts[i] = mon.sel_lt;
+        }
+
+        for (self.config.tag_layouts, 0..) |maybe_layout, i| {
+            if (maybe_layout) |layout_name| {
+                if (config_mod.Layouts.fromString(layout_name)) |value| {
+                    mon.pertag.sellts[i + 1] = @intFromEnum(value);
+                }
+            }
         }
 
         self.initMonitorGaps(mon);

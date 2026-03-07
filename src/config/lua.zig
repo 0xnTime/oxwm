@@ -338,6 +338,9 @@ fn registerMiscFunctions(state: *c.lua_State) void {
 
     c.lua_pushcfunction(state, luaIncNumMaster);
     c.lua_setfield(state, -2, "inc_num_master");
+
+    c.lua_pushcfunction(state, luaSetTagLayout);
+    c.lua_setfield(state, -2, "set_tag_layout");
 }
 
 fn createActionTable(state: *c.lua_State, action_name: [*:0]const u8) void {
@@ -1083,23 +1086,29 @@ fn luaSetLayoutSymbol(state: ?*c.lua_State) callconv(.c) c_int {
     const name = getStringArg(s, 1) orelse return 0;
     const symbol = dupeLuaString(s, 2) orelse return 0;
 
-    const layout_map = .{
-        .{ "tiling", &cfg.layout_tile_symbol },
-        .{ "tile", &cfg.layout_tile_symbol },
-        .{ "normie", &cfg.layout_floating_symbol },
-        .{ "floating", &cfg.layout_floating_symbol },
-        .{ "float", &cfg.layout_floating_symbol },
-        .{ "monocle", &cfg.layout_monocle_symbol },
-        .{ "scrolling", &cfg.layout_scrolling_symbol },
-        .{ "scroll", &cfg.layout_scrolling_symbol },
-        .{ "grid", &cfg.layout_grid_symbol },
-    };
+    const layout = config_mod.Layouts.fromString(name) orelse return 0;
+    switch (layout) {
+        .tiling => cfg.layout_tile_symbol = symbol,
+        .monocle => cfg.layout_monocle_symbol = symbol,
+        .floating => cfg.layout_floating_symbol = symbol,
+        .scrolling => cfg.layout_scrolling_symbol = symbol,
+        .grid => cfg.layout_grid_symbol = symbol,
+    }
+    return 0;
+}
 
-    inline for (layout_map) |entry| {
-        if (std.mem.eql(u8, name, entry[0])) {
-            entry[1].* = symbol;
-            return 0;
-        }
+fn luaSetTagLayout(state: ?*c.lua_State) callconv(.c) c_int {
+    const cfg = config orelse return 0;
+    const s = state orelse return 0;
+    const tag_index = c.lua_tointegerx(s, 1, null);
+    if (tag_index < 1 or tag_index > 9) return 0;
+    const name = getStringArg(s, 2) orelse return 0;
+    if (config_mod.Layouts.fromString(name) == null) {
+        std.debug.print("set_tag_layout: unknown layout '{s}'\n", .{name});
+        return 0;
+    }
+    if (dupeLuaString(s, 2)) |layout_str| {
+        cfg.tag_layouts[@intCast(tag_index - 1)] = layout_str;
     }
     return 0;
 }
