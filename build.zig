@@ -15,7 +15,6 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
-    exe.root_module.addIncludePath(lua_headers);
 
     const exe_options = b.addOptions();
     exe_options.addOption([]const u8, "version", zon.version);
