@@ -6,6 +6,8 @@ const tiling = @import("../layouts/tiling.zig");
 const scrolling = @import("../layouts/scrolling.zig");
 const window_manager = @import("wm.zig");
 
+const config_mod = @import("../config/config.zig");
+
 const Client = client_mod.Client;
 const Monitor = monitor_mod.Monitor;
 const WindowManager = window_manager.WindowManager;
@@ -38,7 +40,19 @@ pub fn manage(win: xlib.Window, window_attrs: *xlib.XWindowAttributes, wm: *Wind
 
     if (client.monitor == null) {
         client.monitor = wm.selected_monitor;
-        applyRules(client, wm);
+        if (wm.next_spawn_bypass_rules) {
+            if (client.monitor) |monitor| {
+                client.tags = monitor.tagset[monitor.sel_tags];
+            }
+            wm.next_spawn_bypass_rules = false;
+        } else {
+            applyRules(client, wm);
+        }
+    }
+
+    if (wm.next_spawn_floating) {
+        client.is_floating = true;
+        wm.next_spawn_floating = false;
     }
 
     const monitor = client.monitor orelse return;
@@ -72,6 +86,7 @@ pub fn manage(win: xlib.Window, window_attrs: *xlib.XWindowAttributes, wm: *Wind
         client.old_state = client.is_floating;
     }
     if (client.is_floating) {
+        positionFloating(client, monitor, wm.config.floating_position);
         _ = xlib.XRaiseWindow(wm.display.handle, client.window);
     }
 
@@ -432,6 +447,22 @@ pub fn scrollToWindow(client: *Client, animate: bool, wm: *WindowManager) void {
     }
 }
 
+fn positionFloating(client: *Client, monitor: *Monitor, pos: config_mod.FloatingPosition) void {
+    const bw = 2 * client.border_width;
+    const x: i32 = switch (pos) {
+        .top_left, .center_left, .bottom_left => monitor.win_x,
+        .top_center, .center, .bottom_center => monitor.win_x + @divTrunc(monitor.win_w - client.width - bw, 2),
+        .top_right, .center_right, .bottom_right => monitor.win_x + monitor.win_w - client.width - bw,
+    };
+    const y: i32 = switch (pos) {
+        .top_left, .top_center, .top_right => monitor.win_y,
+        .center_left, .center, .center_right => monitor.win_y + @divTrunc(monitor.win_h - client.height - bw, 2),
+        .bottom_left, .bottom_center, .bottom_right => monitor.win_y + monitor.win_h - client.height - bw,
+    };
+    client.x = x;
+    client.y = y;
+}
+
 pub fn applyRules(client: *Client, wm: *WindowManager) void {
     var class_hint: xlib.XClassHint = .{ .res_name = null, .res_class = null };
     _ = xlib.XGetClassHint(wm.display.handle, client.window, &class_hint);
@@ -728,6 +759,12 @@ pub fn view(tag_mask: u32, wm: *WindowManager) void {
     monitor.nmaster = monitor.pertag.nmasters[monitor.pertag.curtag];
     monitor.mfact = monitor.pertag.mfacts[monitor.pertag.curtag];
     monitor.sel_lt = monitor.pertag.sellts[monitor.pertag.curtag];
+
+    const new_show_bar = monitor.pertag.showbars[monitor.pertag.curtag];
+    if (new_show_bar != monitor.show_bar) {
+        monitor.show_bar = new_show_bar;
+        window_manager.actions.updateBarVisibility(monitor, wm);
+    }
 
     focusTopClient(monitor, wm);
     arrange(monitor, wm);

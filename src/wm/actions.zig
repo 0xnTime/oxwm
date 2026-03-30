@@ -6,6 +6,7 @@ const lua = @import("../config/lua.zig");
 const core = @import("core.zig");
 const tiling = @import("../layouts/tiling.zig");
 const monitor_mod = @import("../monitor.zig");
+const bar_mod = @import("../bar/bar.zig");
 const wm_mod = @import("wm.zig");
 const xlib = @import("../x11/xlib.zig");
 
@@ -148,6 +149,12 @@ pub fn toggleView(tag_mask: u32, wm: *WindowManager) void {
         monitor.mfact = monitor.pertag.mfacts[monitor.pertag.curtag];
         monitor.sel_lt = monitor.pertag.sellts[monitor.pertag.curtag];
 
+        const new_show_bar = monitor.pertag.showbars[monitor.pertag.curtag];
+        if (new_show_bar != monitor.show_bar) {
+            monitor.show_bar = new_show_bar;
+            updateBarVisibility(monitor, wm);
+        }
+
         core.focusTopClient(monitor, wm);
         core.arrange(monitor, wm);
         wm.invalidateBars();
@@ -180,6 +187,35 @@ pub fn toggleGaps(wm: *WindowManager) void {
         monitor.gap_outer_v = 0;
     }
     core.arrange(monitor, wm);
+}
+
+pub fn updateBarVisibility(monitor: *Monitor, wm: *WindowManager) void {
+    const bar = bar_mod.windowToBar(wm.bars, monitor.bar_win) orelse return;
+
+    if (monitor.show_bar) {
+        _ = xlib.XMapWindow(wm.display.handle, bar.window);
+        monitor.win_h -= bar.height;
+        if (std.mem.eql(u8, wm.config.bar_position, "top")) {
+            monitor.win_y += bar.height;
+        }
+    } else {
+        _ = xlib.XUnmapWindow(wm.display.handle, bar.window);
+        monitor.win_h += bar.height;
+        if (std.mem.eql(u8, wm.config.bar_position, "top")) {
+            monitor.win_y -= bar.height;
+        }
+    }
+}
+
+pub fn toggleBar(wm: *WindowManager) void {
+    const monitor = wm.selected_monitor orelse return;
+    monitor.show_bar = !monitor.show_bar;
+    monitor.pertag.showbars[monitor.pertag.curtag] = monitor.show_bar;
+
+    updateBarVisibility(monitor, wm);
+
+    core.arrange(monitor, wm);
+    wm.invalidateBars();
 }
 
 pub fn killFocused(wm: *WindowManager) void {
@@ -342,15 +378,15 @@ pub fn setmfact(delta: f32, wm: *WindowManager) void {
 
 pub fn cycleLayout(wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
-    const new_lt = (monitor.sel_lt + 1) % 5;
+    const new_lt = (monitor.sel_lt + 1) % @as(u32, @intCast(std.meta.fields(config_mod.Layouts).len));
     monitor.sel_lt = new_lt;
     monitor.pertag.sellts[monitor.pertag.curtag] = new_lt;
-    if (new_lt != 3) {
+    if (new_lt != @intFromEnum(config_mod.Layouts.scrolling)) {
         monitor.scroll_offset = 0;
     }
     core.arrange(monitor, wm);
     wm.invalidateBars();
-    if (monitor.lt[monitor.sel_lt]) |layout| {
+    if (monitor.lt[@as(usize, monitor.sel_lt)]) |layout| {
         std.debug.print("cycle_layout: {s}\n", .{layout.symbol});
     }
 }
@@ -358,44 +394,35 @@ pub fn cycleLayout(wm: *WindowManager) void {
 pub fn setLayout(layout_name: ?[]const u8, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
     const name = layout_name orelse return;
-
-    const new_lt: u32 = if (std.mem.eql(u8, name, "tiling") or std.mem.eql(u8, name, "[]="))
-        0
-    else if (std.mem.eql(u8, name, "monocle") or std.mem.eql(u8, name, "[M]"))
-        1
-    else if (std.mem.eql(u8, name, "floating") or std.mem.eql(u8, name, "><>"))
-        2
-    else if (std.mem.eql(u8, name, "scrolling") or std.mem.eql(u8, name, "[S]"))
-        3
-    else if (std.mem.eql(u8, name, "grid") or std.mem.eql(u8, name, "[#]"))
-        4
+    const new_lt: u32 = if (config_mod.Layouts.fromString(name)) |value|
+        @intFromEnum(value)
     else {
         std.debug.print("set_layout: unknown layout '{s}'\n", .{name});
         return;
     };
-
     monitor.sel_lt = new_lt;
     monitor.pertag.sellts[monitor.pertag.curtag] = new_lt;
-    if (new_lt != 3) {
+    if (new_lt != @intFromEnum(config_mod.Layouts.scrolling)) {
         monitor.scroll_offset = 0;
     }
     core.arrange(monitor, wm);
     wm.invalidateBars();
-    if (monitor.lt[monitor.sel_lt]) |layout| {
+    if (monitor.lt[@as(usize, monitor.sel_lt)]) |layout| {
         std.debug.print("set_layout: {s}\n", .{layout.symbol});
     }
 }
 
 pub fn setLayoutIndex(index: u32, wm: *WindowManager) void {
     const monitor = wm.selected_monitor orelse return;
-    monitor.sel_lt = index;
-    monitor.pertag.sellts[monitor.pertag.curtag] = index;
-    if (index != 3) {
+    const lt_index = index % @as(u32, @intCast(std.meta.fields(config_mod.Layouts).len));
+    monitor.sel_lt = lt_index;
+    monitor.pertag.sellts[monitor.pertag.curtag] = lt_index;
+    if (lt_index != @intFromEnum(config_mod.Layouts.scrolling)) {
         monitor.scroll_offset = 0;
     }
     core.arrange(monitor, wm);
     wm.invalidateBars();
-    if (monitor.lt[monitor.sel_lt]) |layout| {
+    if (monitor.lt[@as(usize, monitor.sel_lt)]) |layout| {
         std.debug.print("set_layout_index: {s}\n", .{layout.symbol});
     }
 }
@@ -774,6 +801,7 @@ pub fn executeAction(action: config_mod.Action, int_arg: i32, str_arg: ?[]const 
         .toggle_floating => toggleFloating(wm),
         .toggle_fullscreen => toggleFullscreen(wm),
         .toggle_gaps => toggleGaps(wm),
+        .toggle_bar => toggleBar(wm),
         .cycle_layout => cycleLayout(wm),
         .set_layout => setLayout(str_arg, wm),
         .set_layout_tiling => setLayoutIndex(0, wm),

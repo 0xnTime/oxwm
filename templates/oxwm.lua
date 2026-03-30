@@ -50,6 +50,23 @@ function oxwm.tiled_resize_mode(enabled) end
 ---@param symbol string Symbol to display (e.g., "[T]", "[F]", "[=]")
 function oxwm.set_layout_symbol(name, symbol) end
 
+---Set default layout for all tags
+---@param name string Layout name ("tiling", "floating", "scrolling", "grid", "monocle", or aliases: "tile", "float", "scroll", "normie")
+function oxwm.set_layout(name) end
+
+---Set default layout for a specific tag
+---@param tag integer Tag index (1-9)
+---@param name string Layout name ("tiling", "floating", "scrolling", "grid", "monocle", or aliases)
+function oxwm.set_tag_layout(tag, name) end
+
+---Set floating window spawn position
+---@param position string Position ("center", "top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center", "center-left", "center-right", or underscore variants)
+function oxwm.set_floating_position(position) end
+
+---Toggle the status bar visibility
+---@return table Action table for keybinding
+function oxwm.toggle_bar() end
+
 ---Window rule module
 ---@class oxwm.rule
 oxwm.rule = {}
@@ -260,6 +277,10 @@ oxwm.bar = {}
 ---@param font string Font string (e.g., "monospace:style=Bold:size=10")
 function oxwm.bar.set_font(font) end
 
+---Set status bar position
+---@param position string Bar position ("top" or "bottom")
+function oxwm.bar.set_position(position) end
+
 ---DEPRECATED: Add a status bar block (use oxwm.bar.set_blocks with block constructors instead)
 ---@deprecated
 ---@param format string Format string with {} placeholders
@@ -279,27 +300,27 @@ function oxwm.bar.set_blocks(blocks) end
 oxwm.bar.block = {}
 
 ---Create a RAM usage block
----@param config {format: string, interval: integer, color: string|integer, underline: boolean} Block configuration
+---@param config {format: string, interval: integer, color: string|integer, underline: boolean, click: string|{command: string, floating: boolean?, bypass_rules: boolean?}?} Block configuration
 ---@return table Block configuration
 function oxwm.bar.block.ram(config) end
 
 ---Create a date/time block
----@param config {format: string, date_format: string, interval: integer, color: string|integer, underline: boolean} Block configuration (format is display template with {}, date_format is strftime format)
+---@param config {format: string, date_format: string, interval: integer, color: string|integer, underline: boolean, click: string|{command: string, floating: boolean?, bypass_rules: boolean?}?} Block configuration (format is display template with {}, date_format is strftime format)
 ---@return table Block configuration
 function oxwm.bar.block.datetime(config) end
 
 ---Create a shell command block
----@param config {format: string, command: string, interval: integer, color: string|integer, underline: boolean} Block configuration
+---@param config {format: string, command: string, interval: integer, color: string|integer, underline: boolean, click: string|{command: string, floating: boolean?, bypass_rules: boolean?}?} Block configuration
 ---@return table Block configuration
 function oxwm.bar.block.shell(config) end
 
 ---Create a static text block
----@param config {format: string, text: string, interval: integer, color: string|integer, underline: boolean} Block configuration
+---@param config {format: string, text: string, interval: integer, color: string|integer, underline: boolean, click: string|{command: string, floating: boolean?, bypass_rules: boolean?}?} Block configuration
 ---@return table Block configuration
 function oxwm.bar.block.static(config) end
 
 ---Create a battery status block
----@param config {format: string, charging: string, discharging: string, full: string, interval: integer, color: string|integer, underline: boolean, battery_name: string} Block configuration
+---@param config {format: string, charging: string, discharging: string, full: string, interval: integer, color: string|integer, underline: boolean, battery_name: string, click: string|{command: string, floating: boolean?, bypass_rules: boolean?}?} Block configuration
 ---@return table Block configuration
 function oxwm.bar.block.battery(config) end
 

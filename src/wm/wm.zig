@@ -85,6 +85,8 @@ pub const WindowManager = struct {
     animation_config: animations.AnimationConfig,
 
     running: bool,
+    next_spawn_floating: bool = false,
+    next_spawn_bypass_rules: bool = false,
     last_motion_monitor: ?*Monitor,
 
     /// Initialises the window manager
@@ -159,43 +161,65 @@ pub const WindowManager = struct {
         self.config.deinit();
     }
 
+    const layouts = [_]*const monitor_mod.Layout{
+        &tiling.layout,
+        &monocle.layout,
+        &floating.layout,
+        &scrolling.layout,
+        &grid.layout,
+    };
+
+    fn initMonitor(self: *WindowManager, mon: *Monitor, num: usize, x: i16, y: i16, w: c_int, h: c_int) void {
+        mon.num = @intCast(num);
+        mon.mon_x = x;
+        mon.mon_y = y;
+        mon.mon_w = w;
+        mon.mon_h = h;
+        mon.win_x = x;
+        mon.win_y = y;
+        mon.win_w = w;
+        mon.win_h = h;
+
+        for (&mon.lt, layouts) |*slot, layout| {
+            slot.* = layout;
+        }
+
+        if (config_mod.Layouts.fromString(self.config.layout)) |value| {
+            mon.sel_lt = @intFromEnum(value);
+        }
+
+        for (0..10) |i| {
+            for (0..layouts.len) |j| {
+                mon.pertag.ltidxs[i][j] = mon.lt[j];
+            }
+            mon.pertag.sellts[i] = mon.sel_lt;
+        }
+
+        for (self.config.tag_layouts, 0..) |maybe_layout, i| {
+            if (maybe_layout) |layout_name| {
+                if (config_mod.Layouts.fromString(layout_name)) |value| {
+                    mon.pertag.sellts[i + 1] = @intFromEnum(value);
+                }
+            }
+        }
+
+        self.initMonitorGaps(mon);
+    }
+
     fn setupMonitors(self: *WindowManager) void {
         if (xlib.XineramaIsActive(self.display.handle) != 0) {
             var screen_count: c_int = 0;
             const screens = xlib.XineramaQueryScreens(self.display.handle, &screen_count);
+            defer if (screens != null) {
+                _ = xlib.XFree(@ptrCast(screens));
+            };
 
             if (screen_count > 0 and screens != null) {
                 var prev_monitor: ?*Monitor = null;
-                var index: usize = 0;
-
-                while (index < @as(usize, @intCast(screen_count))) : (index += 1) {
+                for (0..@as(usize, @intCast(screen_count))) |index| {
                     const screen = screens[index];
                     const mon = monitor_mod.create(self.allocator) orelse continue;
-
-                    mon.num = @intCast(index);
-                    mon.mon_x = screen.x_org;
-                    mon.mon_y = screen.y_org;
-                    mon.mon_w = screen.width;
-                    mon.mon_h = screen.height;
-                    mon.win_x = screen.x_org;
-                    mon.win_y = screen.y_org;
-                    mon.win_w = screen.width;
-                    mon.win_h = screen.height;
-                    mon.lt[0] = &tiling.layout;
-                    mon.lt[1] = &monocle.layout;
-                    mon.lt[2] = &floating.layout;
-                    mon.lt[3] = &scrolling.layout;
-                    mon.lt[4] = &grid.layout;
-
-                    for (0..10) |i| {
-                        mon.pertag.ltidxs[i][0] = mon.lt[0];
-                        mon.pertag.ltidxs[i][1] = mon.lt[1];
-                        mon.pertag.ltidxs[i][2] = mon.lt[2];
-                        mon.pertag.ltidxs[i][3] = mon.lt[3];
-                        mon.pertag.ltidxs[i][4] = mon.lt[4];
-                    }
-
-                    self.initMonitorGaps(mon);
+                    self.initMonitor(mon, index, screen.x_org, screen.y_org, screen.width, screen.height);
 
                     if (prev_monitor) |prev| {
                         prev.next = mon;
@@ -205,38 +229,12 @@ pub const WindowManager = struct {
                     }
                     prev_monitor = mon;
                 }
-
-                _ = xlib.XFree(@ptrCast(screens));
             }
         }
 
-        // Fallback: single monitor covering the full screen.
         if (self.monitors == null) {
             const mon = monitor_mod.create(self.allocator) orelse return;
-            mon.num = 0;
-            mon.mon_x = 0;
-            mon.mon_y = 0;
-            mon.mon_w = self.display.screenWidth();
-            mon.mon_h = self.display.screenHeight();
-            mon.win_x = 0;
-            mon.win_y = 0;
-            mon.win_w = mon.mon_w;
-            mon.win_h = mon.mon_h;
-            mon.lt[0] = &tiling.layout;
-            mon.lt[1] = &monocle.layout;
-            mon.lt[2] = &floating.layout;
-            mon.lt[3] = &scrolling.layout;
-            mon.lt[4] = &grid.layout;
-
-            for (0..10) |i| {
-                mon.pertag.ltidxs[i][0] = mon.lt[0];
-                mon.pertag.ltidxs[i][1] = mon.lt[1];
-                mon.pertag.ltidxs[i][2] = mon.lt[2];
-                mon.pertag.ltidxs[i][3] = mon.lt[3];
-                mon.pertag.ltidxs[i][4] = mon.lt[4];
-            }
-
-            self.initMonitorGaps(mon);
+            self.initMonitor(mon, 0, 0, 0, self.display.screenWidth(), self.display.screenHeight());
             self.monitors = mon;
             self.selected_monitor = mon;
         }
@@ -714,7 +712,7 @@ pub const WindowManager = struct {
 
 /// Converts a config block description into a live status bar block.
 pub fn configBlockToBarBlock(cfg: config_mod.Block) blocks_mod.Block {
-    return switch (cfg.block_type) {
+    var block = switch (cfg.block_type) {
         .static => blocks_mod.Block.initStatic(cfg.format, cfg.color, cfg.underline),
         .datetime => blocks_mod.Block.initDatetime(
             cfg.format,
@@ -748,4 +746,6 @@ pub fn configBlockToBarBlock(cfg: config_mod.Block) blocks_mod.Block {
             cfg.underline,
         ),
     };
+    block.click = cfg.click;
+    return block;
 }

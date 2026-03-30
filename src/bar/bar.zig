@@ -9,13 +9,13 @@ const Monitor = monitor_mod.Monitor;
 const Block = blocks_mod.Block;
 
 fn getLayoutSymbol(layout_index: u32, config: config_mod.Config) []const u8 {
-    return switch (layout_index) {
-        0 => config.layout_tile_symbol,
-        1 => config.layout_monocle_symbol,
-        2 => config.layout_floating_symbol,
-        3 => config.layout_scrolling_symbol,
-        4 => "[#]",
-        else => "[?]",
+    const layout = std.meta.intToEnum(config_mod.Layouts, layout_index) catch return "[?]";
+    return switch (layout) {
+        .tiling => config.layout_tile_symbol,
+        .monocle => config.layout_monocle_symbol,
+        .floating => config.layout_floating_symbol,
+        .scrolling => config.layout_scrolling_symbol,
+        .grid => config.layout_grid_symbol,
     };
 }
 
@@ -73,11 +73,23 @@ pub const Bar = struct {
         const font_height = font.*.ascent + font.*.descent;
         const bar_height: i32 = @intCast(@as(i32, font_height) + 8);
 
+        var bar_y: i32 = 0;
+
+        if (std.mem.eql(u8, config.bar_position, "top")) {
+            bar_y = monitor.mon_y;
+            monitor.win_y = monitor.mon_y + bar_height;
+        } else if (std.mem.eql(u8, config.bar_position, "bottom")) {
+            bar_y = monitor.mon_y + monitor.mon_h - bar_height;
+            monitor.win_y = monitor.mon_y;
+        } else {
+            return null;
+        }
+
         const window = xlib.c.XCreateSimpleWindow(
             display,
             root,
             monitor.mon_x,
-            monitor.mon_y,
+            bar_y,
             @intCast(monitor.mon_w),
             @intCast(bar_height),
             0,
@@ -125,7 +137,6 @@ pub const Bar = struct {
         };
 
         monitor.bar_win = window;
-        monitor.win_y = monitor.mon_y + bar_height;
         monitor.win_h = monitor.mon_h - bar_height;
 
         return bar;
@@ -206,6 +217,8 @@ pub const Bar = struct {
             const content = block.getContent();
             const content_width = self.textWidth(display, content);
             block_x -= content_width;
+            block.x_start = block_x;
+            block.x_end = block_x + content_width;
             self.drawText(display, block_x, @divTrunc(self.height + self.font_height, 2) - 4, content, block.color());
             if (block.underline) {
                 self.fillRect(display, block_x, self.height - 2, content_width, 2, block.color());
@@ -241,6 +254,16 @@ pub const Bar = struct {
                 return index;
             }
             x_position += tag_width;
+        }
+        return null;
+    }
+
+    /// Returns the click action of the block the user clicked on, or null.
+    pub fn handleBlockClick(self: *Bar, click_x: i32) ?config_mod.ClickAction {
+        for (self.blocks.items) |*block| {
+            if (block.click != null and click_x >= block.x_start and click_x < block.x_end) {
+                return block.click;
+            }
         }
         return null;
     }

@@ -274,6 +274,9 @@ fn registerBarModule(state: *c.lua_State) void {
     c.lua_pushcfunction(state, luaBarSetHideVacantTags);
     c.lua_setfield(state, -2, "set_hide_vacant_tags");
 
+    c.lua_pushcfunction(state, luaBarSetPosition);
+    c.lua_setfield(state, -2, "set_position");
+
     c.lua_createtable(state, 0, 6);
 
     c.lua_pushcfunction(state, luaBarBlockRam);
@@ -299,6 +302,9 @@ fn registerBarModule(state: *c.lua_State) void {
 fn registerMiscFunctions(state: *c.lua_State) void {
     c.lua_pushcfunction(state, luaSetTerminal);
     c.lua_setfield(state, -2, "set_terminal");
+
+    c.lua_pushcfunction(state, luaSetLayout);
+    c.lua_setfield(state, -2, "set_layout");
 
     c.lua_pushcfunction(state, luaSetModkey);
     c.lua_setfield(state, -2, "set_modkey");
@@ -327,6 +333,9 @@ fn registerMiscFunctions(state: *c.lua_State) void {
     c.lua_pushcfunction(state, luaToggleGaps);
     c.lua_setfield(state, -2, "toggle_gaps");
 
+    c.lua_pushcfunction(state, luaToggleBar);
+    c.lua_setfield(state, -2, "toggle_bar");
+
     c.lua_pushcfunction(state, luaShowKeybinds);
     c.lua_setfield(state, -2, "show_keybinds");
 
@@ -335,6 +344,12 @@ fn registerMiscFunctions(state: *c.lua_State) void {
 
     c.lua_pushcfunction(state, luaIncNumMaster);
     c.lua_setfield(state, -2, "inc_num_master");
+
+    c.lua_pushcfunction(state, luaSetTagLayout);
+    c.lua_setfield(state, -2, "set_tag_layout");
+
+    c.lua_pushcfunction(state, luaSetFloatingPosition);
+    c.lua_setfield(state, -2, "set_floating_position");
 }
 
 fn createActionTable(state: *c.lua_State, action_name: [*:0]const u8) void {
@@ -755,6 +770,15 @@ fn luaBarSetFont(state: ?*c.lua_State) callconv(.c) c_int {
     return 0;
 }
 
+fn luaBarSetPosition(state: ?*c.lua_State) callconv(.c) c_int {
+    const cfg = config orelse return 0;
+    const s = state orelse return 0;
+    if (dupeLuaString(s, 1)) |position| {
+        cfg.bar_position = position;
+    }
+    return 0;
+}
+
 fn luaBarSetBlocks(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
@@ -805,12 +829,17 @@ fn parseBlockConfig(state: *c.lua_State, idx: c_int) ?Block {
     const underline = c.lua_toboolean(state, -1) != 0;
     c.lua_settop(state, -2);
 
+    _ = c.lua_getfield(state, idx, "click");
+    const click = parseClickAction(state, -1);
+    c.lua_settop(state, -2);
+
     var block = Block{
         .block_type = .static,
         .format = format,
         .interval = interval,
         .color = color,
         .underline = underline,
+        .click = click,
     };
 
     if (std.mem.eql(u8, block_type_str, "Ram")) {
@@ -931,7 +960,7 @@ fn luaBarBlockStatic(state: ?*c.lua_State) callconv(.c) c_int {
 fn luaBarBlockBattery(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
 
-    c.lua_createtable(s, 0, 6);
+    c.lua_createtable(s, 0, 7);
 
     _ = c.lua_pushstring(s, "Battery");
     c.lua_setfield(s, -2, "__block_type");
@@ -948,6 +977,9 @@ fn luaBarBlockBattery(state: ?*c.lua_State) callconv(.c) c_int {
     _ = c.lua_getfield(s, 1, "underline");
     c.lua_setfield(s, -2, "underline");
 
+    _ = c.lua_getfield(s, 1, "click");
+    c.lua_setfield(s, -2, "click");
+
     c.lua_createtable(s, 0, 4);
     _ = c.lua_getfield(s, 1, "charging");
     c.lua_setfield(s, -2, "charging");
@@ -963,7 +995,7 @@ fn luaBarBlockBattery(state: ?*c.lua_State) callconv(.c) c_int {
 }
 
 fn createBlockTable(state: *c.lua_State, block_type: [*:0]const u8, arg: ?[]const u8) void {
-    c.lua_createtable(state, 0, 6);
+    c.lua_createtable(state, 0, 7);
 
     _ = c.lua_pushstring(state, block_type);
     c.lua_setfield(state, -2, "__block_type");
@@ -980,6 +1012,9 @@ fn createBlockTable(state: *c.lua_State, block_type: [*:0]const u8, arg: ?[]cons
     _ = c.lua_getfield(state, 1, "underline");
     c.lua_setfield(state, -2, "underline");
 
+    _ = c.lua_getfield(state, 1, "click");
+    c.lua_setfield(state, -2, "click");
+
     if (arg) |a| {
         var buf: [256]u8 = undefined;
         if (a.len < buf.len) {
@@ -991,11 +1026,36 @@ fn createBlockTable(state: *c.lua_State, block_type: [*:0]const u8, arg: ?[]cons
     }
 }
 
+fn luaSetFloatingPosition(state: ?*c.lua_State) callconv(.c) c_int {
+    const cfg = config orelse return 0;
+    const s = state orelse return 0;
+    if (getLuaString(s, 1)) |name| {
+        if (config_mod.FloatingPosition.fromString(name)) |pos| {
+            cfg.floating_position = pos;
+        }
+    }
+    return 0;
+}
+
 fn luaSetTerminal(state: ?*c.lua_State) callconv(.c) c_int {
     const cfg = config orelse return 0;
     const s = state orelse return 0;
     if (dupeLuaString(s, 1)) |term| {
         cfg.terminal = term;
+    }
+    return 0;
+}
+
+fn luaSetLayout(state: ?*c.lua_State) callconv(.c) c_int {
+    const cfg = config orelse return 0;
+    const s = state orelse return 0;
+    const name = getStringArg(s, 1) orelse return 0;
+    if (config_mod.Layouts.fromString(name) == null) {
+        std.debug.print("set_layout: unknown layout '{s}'\n", .{name});
+        return 0;
+    }
+    if (dupeLuaString(s, 1)) |layout| {
+        cfg.layout = layout;
     }
     return 0;
 }
@@ -1069,22 +1129,29 @@ fn luaSetLayoutSymbol(state: ?*c.lua_State) callconv(.c) c_int {
     const name = getStringArg(s, 1) orelse return 0;
     const symbol = dupeLuaString(s, 2) orelse return 0;
 
-    const layout_map = .{
-        .{ "tiling", &cfg.layout_tile_symbol },
-        .{ "tile", &cfg.layout_tile_symbol },
-        .{ "normie", &cfg.layout_floating_symbol },
-        .{ "floating", &cfg.layout_floating_symbol },
-        .{ "float", &cfg.layout_floating_symbol },
-        .{ "monocle", &cfg.layout_monocle_symbol },
-        .{ "scrolling", &cfg.layout_scrolling_symbol },
-        .{ "scroll", &cfg.layout_scrolling_symbol },
-    };
+    const layout = config_mod.Layouts.fromString(name) orelse return 0;
+    switch (layout) {
+        .tiling => cfg.layout_tile_symbol = symbol,
+        .monocle => cfg.layout_monocle_symbol = symbol,
+        .floating => cfg.layout_floating_symbol = symbol,
+        .scrolling => cfg.layout_scrolling_symbol = symbol,
+        .grid => cfg.layout_grid_symbol = symbol,
+    }
+    return 0;
+}
 
-    inline for (layout_map) |entry| {
-        if (std.mem.eql(u8, name, entry[0])) {
-            entry[1].* = symbol;
-            return 0;
-        }
+fn luaSetTagLayout(state: ?*c.lua_State) callconv(.c) c_int {
+    const cfg = config orelse return 0;
+    const s = state orelse return 0;
+    const tag_index = c.lua_tointegerx(s, 1, null);
+    if (tag_index < 1 or tag_index > 9) return 0;
+    const name = getStringArg(s, 2) orelse return 0;
+    if (config_mod.Layouts.fromString(name) == null) {
+        std.debug.print("set_tag_layout: unknown layout '{s}'\n", .{name});
+        return 0;
+    }
+    if (dupeLuaString(s, 2)) |layout_str| {
+        cfg.tag_layouts[@intCast(tag_index - 1)] = layout_str;
     }
     return 0;
 }
@@ -1104,6 +1171,12 @@ fn luaRestart(state: ?*c.lua_State) callconv(.c) c_int {
 fn luaToggleGaps(state: ?*c.lua_State) callconv(.c) c_int {
     const s = state orelse return 0;
     createActionTable(s, "ToggleGaps");
+    return 1;
+}
+
+fn luaToggleBar(state: ?*c.lua_State) callconv(.c) c_int {
+    const s = state orelse return 0;
+    createActionTable(s, "ToggleBar");
     return 1;
 }
 
@@ -1177,6 +1250,30 @@ fn dupeLuaString(state: *c.lua_State, idx: c_int) ?[]const u8 {
     const arena_allocator = cfg.string_arena.allocator();
     const duped = arena_allocator.dupe(u8, lua_str) catch return null;
     return duped;
+}
+
+fn parseClickAction(state: *c.lua_State, idx: c_int) ?config_mod.ClickAction {
+    const lua_type = c.lua_type(state, idx);
+    if (lua_type == c.LUA_TSTRING) {
+        const cmd = dupeLuaString(state, idx) orelse return null;
+        return .{ .command = cmd };
+    } else if (lua_type == c.LUA_TTABLE) {
+        _ = c.lua_getfield(state, idx, "command");
+        const cmd = dupeLuaString(state, -1);
+        c.lua_settop(state, -2);
+        if (cmd == null) return null;
+
+        _ = c.lua_getfield(state, idx, "floating");
+        const floating = c.lua_toboolean(state, -1) != 0;
+        c.lua_settop(state, -2);
+
+        _ = c.lua_getfield(state, idx, "bypass_rules");
+        const bypass_rules = c.lua_toboolean(state, -1) != 0;
+        c.lua_settop(state, -2);
+
+        return .{ .command = cmd.?, .floating = floating, .bypass_rules = bypass_rules };
+    }
+    return null;
 }
 
 fn parseColor(state: *c.lua_State, idx: c_int) u32 {
@@ -1257,6 +1354,7 @@ fn parseAction(name: []const u8) ?Action {
         .{ "ToggleFloating", Action.toggle_floating },
         .{ "ToggleFullScreen", Action.toggle_fullscreen },
         .{ "ToggleGaps", Action.toggle_gaps },
+        .{ "ToggleBar", Action.toggle_bar },
         .{ "CycleLayout", Action.cycle_layout },
         .{ "ChangeLayout", Action.set_layout },
         .{ "ViewTag", Action.view_tag },

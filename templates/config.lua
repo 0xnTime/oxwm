@@ -92,6 +92,9 @@ local blocks = {
         interval = 30,
         color = colors.green,
         underline = true,
+        -- click: run a command when the block is clicked
+        -- click = "alacritty -e btop",
+        -- click = { command = "bluetui", floating = true },
     }),
 };
 
@@ -102,6 +105,9 @@ oxwm.set_terminal(terminal)
 oxwm.set_modkey(modkey) -- This is for Mod + mouse binds, such as drag/resize
 oxwm.set_tags(tags)
 
+-- Set default layout (tiling by default)
+-- oxwm.set_layout("tiling")
+
 -------------------------------------------------------------------------------
 -- Layouts
 -------------------------------------------------------------------------------
@@ -110,6 +116,10 @@ oxwm.set_tags(tags)
 oxwm.set_layout_symbol("tiling", "[T]")
 oxwm.set_layout_symbol("normie", "[F]")
 oxwm.set_layout_symbol("tabbed", "[=]")
+
+-- Set default layout of specific tag (tag_index, layout_name)
+-- Unset value uses oxwm.set_layout value
+-- oxwm.set_tag_layout(1, "grid")
 
 -------------------------------------------------------------------------------
 -- Appearance
@@ -122,6 +132,10 @@ oxwm.border.set_width(2)
 oxwm.border.set_focused_color(colors.blue)
 -- Color of unfocused window borders
 oxwm.border.set_unfocused_color(colors.grey)
+
+-- Where floating windows spawn: "top-left", "top-center", "top-right",
+-- "center-left", "center", "center-right", "bottom-left", "bottom-center", "bottom-right"
+oxwm.set_floating_position("center")
 
 -- Smart Enabled = No border if 1 window
 oxwm.gaps.set_smart(enabled)
@@ -157,6 +171,9 @@ oxwm.rule.add({ instance = "gimp", floating = true })
 -------------------------------------------------------------------------------
 -- Font configuration
 oxwm.bar.set_font(bar_font)
+
+-- Position configuration (top/bottom, top is default)
+-- oxwm.bar.set_position("bottom")
 
 -- Set your blocks here (defined above)
 oxwm.bar.set_blocks(blocks)
@@ -222,6 +239,8 @@ oxwm.key.bind({ modkey }, "P", oxwm.inc_num_master(-1))
 
 -- Gaps toggle
 oxwm.key.bind({ modkey }, "A", oxwm.toggle_gaps())
+-- Bar toggle
+oxwm.key.bind({ modkey }, "B", oxwm.toggle_bar())
 
 -- Window manager controls
 oxwm.key.bind({ modkey, "Shift" }, "Q", oxwm.quit())
